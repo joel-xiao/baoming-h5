@@ -8,6 +8,9 @@ router.get('/registrations', adminController.getAllRegistrations);
 // 获取报名统计
 router.get('/stats', adminController.getRegistrationStats);
 
+// 记录浏览量 - 新增
+router.post('/record-view', adminController.recordView);
+
 // 导出报名数据
 router.get('/export', adminController.exportRegistrations);
 

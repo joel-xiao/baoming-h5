@@ -1,15 +1,15 @@
 <template>
   <div class="admin-orders-view">
-    <h1>订单管理</h1>
+    <h1>支付订单管理</h1>
     
     <div class="page-actions">
       <div class="filters">
         <div class="filter">
-          <label>状态：</label>
-          <select v-model="filters.status" @change="fetchOrders">
+          <label for="status-filter">支付状态:</label>
+          <select id="status-filter" v-model="filters.status" @change="fetchOrders">
             <option value="">全部</option>
-            <option value="success">已支付</option>
-            <option value="pending">未支付</option>
+            <option value="success">支付成功</option>
+            <option value="pending">待支付</option>
             <option value="failed">支付失败</option>
           </select>
         </div>
@@ -26,15 +26,26 @@
       
       <div class="actions">
         <button class="refresh-btn" @click="fetchOrders" :disabled="isLoading">
-          <i class="refresh-icon" :class="{ 'rotating': isLoading }"></i>
-          刷新
+          <span class="refresh-icon"></span>
+          <span>刷新</span>
         </button>
         
         <button class="export-btn" @click="exportData" :disabled="isExporting">
-          <i class="export-icon"></i>
-          {{ isExporting ? '导出中...' : '导出数据' }}
+          <span class="export-icon"></span>
+          <span>导出数据</span>
         </button>
       </div>
+    </div>
+    
+    <!-- 错误信息显示 -->
+    <div v-if="errorMessage" class="error-message">
+      <p>{{ errorMessage }}</p>
+      <button @click="fetchOrders">重试</button>
+    </div>
+    
+    <!-- 加载状态 -->
+    <div v-if="isLoading" class="loading-indicator">
+      <p>加载中，请稍候...</p>
     </div>
     
     <!-- 数据统计 -->
@@ -102,12 +113,6 @@
       <div class="empty-data" v-if="orders.length === 0 && !isLoading">
         没有找到符合条件的数据
       </div>
-      
-      <!-- 加载中 -->
-      <div class="loading" v-if="isLoading">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">加载中...</div>
-      </div>
     </div>
     
     <!-- 分页 -->
@@ -147,6 +152,7 @@ export default {
     const stats = ref(null)
     const isLoading = ref(false)
     const isExporting = ref(false)
+    const errorMessage = ref('')
     
     // 分页信息
     const pageInfo = reactive({
@@ -167,6 +173,7 @@ export default {
     const fetchOrders = async () => {
       try {
         isLoading.value = true
+        errorMessage.value = '' // 清除之前的错误信息
         
         // 构建查询参数
         const params = {
@@ -178,22 +185,53 @@ export default {
           params.status = filters.status
         }
         
+        console.log('正在请求订单数据:', params)
+        
         // 调用API获取订单数据
         const response = await adminApi.getPaymentOrders(params)
+        console.log('订单数据响应:', response)
         
-        if (response.success) {
-          orders.value = response.data.orders
-          
-          // 更新分页信息
-          pageInfo.current = response.data.pagination.page
-          pageInfo.pages = response.data.pagination.pages
-          pageInfo.total = response.data.pagination.total
+        // 检查响应格式和内容
+        if (!response) {
+          throw new Error('未收到服务器响应')
         }
         
-        // 获取统计数据
-        await fetchStats()
+        if (response.success) {
+          if (!response.data || !response.data.orders) {
+            console.warn('响应格式不正确:', response)
+            errorMessage.value = '服务器返回了错误的数据格式'
+            return
+          }
+          
+          // 保存订单数据
+          orders.value = response.data.orders
+          
+          // 检查并设置分页信息
+          if (response.data.pagination) {
+            pageInfo.current = response.data.pagination.page || 1
+            pageInfo.pages = response.data.pagination.pages || 1
+            pageInfo.total = response.data.pagination.total || 0
+          } else {
+            console.warn('响应中缺少分页信息')
+            pageInfo.current = 1
+            pageInfo.pages = 1
+            pageInfo.total = response.data.orders.length
+          }
+          
+          // 尝试获取统计数据
+          try {
+            await fetchStats()
+          } catch (statsError) {
+            console.error('获取统计数据失败，但不影响订单显示:', statsError)
+          }
+        } else {
+          // 显示错误信息
+          errorMessage.value = response.message || '获取订单数据失败'
+          console.error('获取订单失败:', response)
+        }
       } catch (error) {
         console.error('获取订单数据错误:', error)
+        errorMessage.value = error.message || '系统发生错误，请稍后再试'
       } finally {
         isLoading.value = false
       }
@@ -286,7 +324,8 @@ export default {
       exportData,
       changePage,
       formatDate,
-      getStatusText
+      getStatusText,
+      errorMessage
     }
   }
 }
@@ -541,5 +580,36 @@ td {
 .page-info {
   font-size: 14px;
   color: #666;
+}
+
+.error-message {
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #ffebee;
+  border: 1px solid #c62828;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.error-message button {
+  padding: 8px 12px;
+  border: 1px solid #c62828;
+  border-radius: 4px;
+  background-color: #c62828;
+  color: #fff;
+  cursor: pointer;
+}
+
+.error-message button:hover {
+  background-color: #b71c1c;
+}
+
+.loading-indicator {
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #fff;
+  border: 1px solid #0078d7;
+  border-radius: 4px;
+  text-align: center;
 }
 </style> 

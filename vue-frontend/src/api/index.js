@@ -79,8 +79,44 @@ export const paymentApi = {
 // 管理员接口
 export const adminApi = {
   // 获取所有支付订单
-  getPaymentOrders(params) {
-    return api.get('/payment/admin/orders', { params });
+  async getPaymentOrders(params) {
+    try {
+      console.log('请求支付订单列表，参数:', params);
+      const response = await api.get('/payment/admin/orders', { params });
+      console.log('订单列表响应:', response);
+      return response;
+    } catch (error) {
+      console.error('获取支付订单列表失败:', error);
+      // 更详细的错误信息
+      if (error.response) {
+        // 服务器返回了错误状态码
+        console.error('服务器错误信息:', {
+          status: error.response.status,
+          data: error.response.data
+        });
+        // 对于500错误，返回友好的错误信息
+        if (error.response.status === 500) {
+          return { 
+            success: false, 
+            message: '服务器内部错误，请稍后再试',
+            error: error.response.data
+          };
+        }
+      } else if (error.request) {
+        // 请求已发送但没有收到响应
+        console.error('未收到服务器响应');
+        return { 
+          success: false, 
+          message: '网络请求超时，请检查网络连接'
+        };
+      }
+      
+      // 默认返回一个一般性错误
+      return { 
+        success: false, 
+        message: error.message || '获取订单数据失败'
+      };
+    }
   },
   
   // 获取所有报名记录
@@ -90,7 +126,16 @@ export const adminApi = {
   
   // 获取报名统计数据
   getStats() {
-    return api.get('/admin/stats');
+    return api.get('/admin/stats', {
+      params: {
+        _t: Date.now() // 添加时间戳防止缓存
+      }
+    });
+  },
+  
+  // 记录浏览量
+  recordView() {
+    return api.post('/admin/record-view');
   },
   
   // 导出报名数据

@@ -59,9 +59,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
-import axios from 'axios'
-
-/* global wx */
+import { paymentApi } from '../api/index.js'
 
 export default {
   name: 'SuccessView',
@@ -84,15 +82,35 @@ export default {
       
       try {
         isLoading.value = true
-        const response = await axios.get(`/api/payment/status/${orderNo.value}`)
         
-        if (response.data.success) {
-          registrationInfo.value = response.data.data
+        // 使用API获取订单信息
+        // eslint-disable-next-line no-undef
+        const result = await paymentApi.getPaymentStatus(orderNo.value)
+        
+        if (result.success && result.data && result.data.paymentStatus === 'success') {
+          // 使用API返回的数据
+          registrationInfo.value = {
+            name: result.data.name,
+            phone: result.data.phone,
+            amount: result.data.paymentAmount,
+            orderNo: result.data.orderNo || orderNo.value,
+            isTeamLeader: result.data.isTeamLeader,
+            teamId: result.data.teamId,
+            createdAt: result.data.paymentTime || result.data.createdAt
+          }
+        } else if (result.data && result.data.paymentStatus === 'pending') {
+          // 轮询检查支付状态
+          setTimeout(() => {
+            fetchRegistrationInfo()
+          }, 3000)
         } else {
+          // 支付失败或出错，返回首页
+          alert('支付未成功，请重新报名')
           router.push('/')
         }
       } catch (error) {
         console.error('获取报名信息失败:', error)
+        alert('获取订单信息失败，请稍后再试')
         router.push('/')
       } finally {
         isLoading.value = false
@@ -128,8 +146,11 @@ export default {
     
     const shareRegistration = () => {
       // 这里可以实现微信分享功能
+      // eslint-disable-next-line no-undef
       if (typeof wx !== 'undefined' && wx.ready) {
+        // eslint-disable-next-line no-undef
         wx.ready(() => {
+          // eslint-disable-next-line no-undef
           wx.updateAppMessageShareData({
             title: '我已成功报名武道开学活动',
             desc: '快来和我一起参加吧！',

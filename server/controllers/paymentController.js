@@ -283,43 +283,128 @@ exports.queryPaymentStatus = async (req, res) => {
 // 获取所有支付订单（管理员接口）
 exports.getAllPayments = async (req, res) => {
   try {
+    console.log('开始获取支付订单列表，查询参数:', req.query);
+    
     // 分页参数
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
     
+    console.log(`分页参数: page=${page}, limit=${limit}, skip=${skip}`);
+    
     // 筛选条件
     const filter = {};
     if (req.query.status) {
       filter.paymentStatus = req.query.status;
+      console.log(`应用状态筛选: ${req.query.status}`);
     }
     
-    // 查询支付记录
-    const orders = await Registration.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-    
-    // 获取总记录数
-    const total = await Registration.countDocuments(filter);
-    
-    // 计算总页数
-    const pages = Math.ceil(total / limit);
-    
-    return res.status(200).json({
-      success: true,
-      data: {
-        orders,
-        pagination: {
-          total,
-          page,
-          limit,
-          pages
+    try {
+      // 使用最基础的文件系统模式处理，完全跳过Mongoose的复杂API
+      console.log('尝试使用文件存储模式获取订单数据');
+      
+      // 获取所有订单数据
+      let allOrders = [];
+      try {
+        // 正常方式获取订单
+        allOrders = await Registration.find(filter);
+        console.log(`初始查询获取到${allOrders.length}条数据`);
+      } catch (findError) {
+        console.error('使用find方法查询失败，尝试直接读取文件:', findError);
+        
+        // 直接从文件读取作为备份解决方案
+        try {
+          const fs = require('fs');
+          const path = require('path');
+          const registrationsFile = path.join(__dirname, '../data/registrations.json');
+          
+          if (fs.existsSync(registrationsFile)) {
+            const rawData = fs.readFileSync(registrationsFile, 'utf8');
+            allOrders = JSON.parse(rawData);
+            console.log(`从文件直接读取到${allOrders.length}条数据`);
+            
+            // 如果有状态筛选，在内存中进行过滤
+            if (filter.paymentStatus) {
+              allOrders = allOrders.filter(order => order.paymentStatus === filter.paymentStatus);
+              console.log(`筛选后还有${allOrders.length}条数据`);
+            }
+          } else {
+            console.log('数据文件不存在，返回空数组');
+            allOrders = [];
+          }
+        } catch (fsError) {
+          console.error('直接从文件读取失败:', fsError);
+          allOrders = [];
         }
       }
+      
+      // 计算总数
+      const total = allOrders.length;
+      console.log(`总记录数: ${total}`);
+      
+      // 在内存中进行排序和分页
+      // 确保createdAt是Date对象或可解析的日期字符串
+      let sortedOrders = [...allOrders].sort((a, b) => {
+        // 安全地解析日期
+        let dateA, dateB;
+        try {
+          dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+          dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+          
+          // 检查是否有效日期
+          if (isNaN(dateA.getTime())) dateA = new Date(0);
+          if (isNaN(dateB.getTime())) dateB = new Date(0);
+        } catch (e) {
+          console.warn('日期解析错误:', e);
+          dateA = new Date(0);
+          dateB = new Date(0);
+        }
+        
+        // 降序排列
+        return dateB.getTime() - dateA.getTime();
+      });
+      
+      // 安全地应用分页
+      const startIndex = Math.min(Math.max(0, skip), total);
+      const endIndex = Math.min(startIndex + limit, total);
+      let pagedOrders = sortedOrders.slice(startIndex, endIndex);
+      
+      console.log(`分页后返回${pagedOrders.length}条记录 (从${startIndex}到${endIndex})`);
+      
+      // 计算总页数
+      const pages = Math.max(1, Math.ceil(total / limit));
+      
+      return res.status(200).json({
+        success: true,
+        data: {
+          orders: pagedOrders,
+          pagination: {
+            total,
+            page,
+            limit,
+            pages
+          }
+        }
+      });
+    } catch (error) {
+      console.error('获取支付订单错误:', error);
+      console.error('错误详情:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      
+      return res.status(500).json({ 
+        success: false, 
+        message: '获取支付订单失败',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  } catch (outerError) {
+    console.error('最外层错误捕获:', outerError);
+    return res.status(500).json({ 
+      success: false, 
+      message: '服务器内部错误'
     });
-  } catch (error) {
-    console.error('获取所有支付订单错误:', error);
-    return res.status(500).json({ success: false, message: '获取支付订单失败' });
   }
 }; 

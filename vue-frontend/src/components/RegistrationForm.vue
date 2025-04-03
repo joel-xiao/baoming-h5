@@ -135,21 +135,59 @@ export default {
         const result = await store.dispatch('submitRegistration')
         
         if (result.success) {
-          // 生成随机订单号
-          const orderNo = 'WD' + Date.now().toString().substring(5)
-          
-          // 重定向到成功页面
-          router.push({ 
-            path: '/success',
-            query: { orderNo }
-          })
+          // 判断是否有微信支付参数
+          if (result.paymentParams) {
+            // 调用微信支付SDK
+            // eslint-disable-next-line no-undef
+            if (typeof wx !== 'undefined' && wx.chooseWXPay) {
+              // 调用微信支付
+              // eslint-disable-next-line no-undef
+              wx.chooseWXPay({
+                timestamp: result.paymentParams.timeStamp,
+                nonceStr: result.paymentParams.nonceStr,
+                package: result.paymentParams.package,
+                signType: result.paymentParams.signType,
+                paySign: result.paymentParams.paySign,
+                success: function(res) {
+                  // 支付成功，跳转到成功页面
+                  router.push({ 
+                    path: '/success',
+                    query: { orderNo: result.orderNo }
+                  });
+                },
+                fail: function(res) {
+                  alert('支付失败，请重试');
+                  isSubmitting.value = false;
+                },
+                cancel: function(res) {
+                  alert('支付已取消');
+                  isSubmitting.value = false;
+                }
+              });
+            } else {
+              // 非微信环境，显示错误
+              alert('请在微信环境中完成支付');
+              isSubmitting.value = false;
+            }
+          } else if (result.orderNo) {
+            // 有订单号但没有支付参数，直接跳转到成功页面
+            router.push({ 
+              path: '/success',
+              query: { orderNo: result.orderNo }
+            });
+            isSubmitting.value = false;
+          } else {
+            // 没有订单号
+            alert('创建订单失败，请稍后再试');
+            isSubmitting.value = false;
+          }
         } else {
-          alert(result.message || '提交失败，请稍后重试')
+          alert(result.message || '提交失败，请稍后重试');
+          isSubmitting.value = false;
         }
       } catch (error) {
-        alert(error.message || '提交失败，请稍后重试')
-      } finally {
-        isSubmitting.value = false
+        alert(error.message || '提交失败，请稍后重试');
+        isSubmitting.value = false;
       }
     }
     

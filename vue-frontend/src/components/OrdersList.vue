@@ -42,6 +42,7 @@
 <script>
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useStore } from 'vuex'
+import { registrationApi } from '../api'
 
 export default {
   name: 'OrdersList',
@@ -59,6 +60,29 @@ export default {
     const shouldScroll = ref(false)
     
     const orders = computed(() => store.state.orders)
+    
+    // 从API加载订单数据
+    const loadOrders = async () => {
+      try {
+        // 直接使用store中的方法获取订单数据
+        await store.dispatch('loadOrders');
+      } catch (error) {
+        console.error('加载订单数据失败:', error);
+      }
+    }
+    
+    // 手机号码脱敏
+    const maskPhone = (phone) => {
+      if (!phone || phone.length !== 11) return phone
+      return phone.substring(0, 3) + '****' + phone.substring(7)
+    }
+    
+    // 格式化日期时间
+    const formatDateTime = (dateStr) => {
+      if (!dateStr) return ''
+      const date = new Date(dateStr)
+      return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+    }
     
     // JS实现的滚动动画
     const startScrollAnimation = () => {
@@ -129,10 +153,8 @@ export default {
     })
     
     onMounted(() => {
-      // 确保数据已加载
-      if (orders.value.length === 0) {
-        store.dispatch('loadOrders')
-      }
+      // 从API加载订单数据
+      loadOrders()
       
       // 等待DOM完全更新后启动滚动
       setTimeout(() => {

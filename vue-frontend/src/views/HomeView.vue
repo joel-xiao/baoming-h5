@@ -52,7 +52,7 @@
 </template>
 
 <script>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
 import Header from '../components/Header.vue'
 import CountdownTimer from '../components/CountdownTimer.vue'
@@ -89,6 +89,7 @@ export default {
     const isFormValid = ref(true)
     const isFormVisible = ref(true)
     const isPaymentVisible = ref(false)
+    const refreshInterval = ref(null)
     
     // 播放背景音乐函数 - 使用更强大的逻辑
     const playBackgroundMusic = () => {
@@ -142,25 +143,90 @@ export default {
     }
     
     // 处理报名表单提交的函数
-    const handleRegistration = () => {
+    const handleRegistration = async () => {
       if (isFormValid.value) {
-        // 创建支付订单对象
-        const paymentOrder = {
-          orderNo: '', // 将在支付组件中创建
-          amount: store.state.activityConfig.price
+        try {
+          // 使用Vuex的action提交报名信息
+          const result = await store.dispatch('submitRegistration')
+          
+          if (result.success) {
+            // 创建支付订单对象
+            const paymentOrder = {
+              orderNo: result.orderNo || '', 
+              amount: store.state.activityConfig.price
+            }
+            
+            // 显示支付界面或处理支付参数
+            if (result.paymentParams) {
+              console.log('准备调用支付接口:', result.paymentParams)
+              // 这里应该调用微信支付SDK
+            }
+            
+            // 创建弹幕
+            const danmuText = `${store.state.user.name}成功报名啦！`
+            store.dispatch('triggerDanmu', { text: danmuText, userName: store.state.user.name })
+          } else {
+            alert(result.message || '报名失败，请稍后重试')
+          }
+        } catch (error) {
+          console.error('报名提交失败:', error)
+          alert(error.message || '报名失败，请稍后重试')
         }
-        // 显示支付界面
-        isFormVisible.value = false
-        isPaymentVisible.value = true
-        
-        const danmuText = '有人要报名啦！'
-        store.dispatch('triggerDanmu', { text: danmuText, userName: store.state.user.name })
       }
     }
     
-    // 加载参与者和订单数据
-    store.dispatch('loadParticipants')
-    store.dispatch('loadOrders')
+    // 加载数据函数
+    const loadData = async () => {
+      console.log('执行loadData函数...');
+      try {
+        // 首先刷新活动统计数据 - 最重要的数据
+        console.log('刷新活动统计数据...');
+        await store.dispatch('loadActivityStats');
+        console.log('活动统计数据刷新完成:', store.state.activityStats);
+
+        // 然后加载参与者数据
+        console.log('加载参与者数据...');
+        await store.dispatch('loadParticipants');
+        console.log('参与者数据加载完成，数量:', store.state.participants.length);
+
+        // 最后加载订单数据
+        console.log('加载订单数据...');
+        await store.dispatch('loadOrders');
+        console.log('订单数据加载完成，数量:', store.state.orders.length);
+
+        // 检查活动是否已结束
+        checkActivityEnd();
+        console.log('数据加载全部完成');
+      } catch (error) {
+        console.error('数据加载失败:', error);
+        // 显示友好错误提示
+        store.commit('setSystemError', {
+          show: true,
+          message: '数据加载失败，请刷新页面重试'
+        });
+      }
+    }
+    
+    // 检查活动是否已结束
+    const checkActivityEnd = () => {
+      console.log('检查活动是否已结束...');
+      try {
+        const endTimeStr = store.state.activityConfig.endTime;
+        const endTime = new Date(endTimeStr);
+        const now = new Date();
+        const isEnded = now > endTime;
+        
+        if (isEnded) {
+          console.log('活动已结束');
+          store.commit('setActivityEndedStatus', true);
+        } else {
+          console.log('活动进行中，结束时间:', endTimeStr);
+          store.commit('setActivityEndedStatus', false);
+        }
+      } catch (error) {
+        console.error('检查活动结束状态出错:', error);
+      }
+    }
     
     // 立即尝试播放背景音乐
     playBackgroundMusic()
@@ -210,6 +276,58 @@ export default {
       }, 3000)
     }, 1000)
 
+    onMounted(async () => {
+      console.log('HomeView组件已挂载');
+      
+      // 强制加载活动统计数据
+      console.log('立即强制加载活动统计数据...');
+      try {
+        // 直接从API获取数据
+        const adminApi = await import('../api').then(module => module.adminApi);
+        const statsResult = await adminApi.getStats();
+        console.log('直接从API获取统计数据:', statsResult);
+        
+        if (statsResult && statsResult.success && statsResult.data) {
+          // 手动更新store
+          store.commit('setActivityStats', statsResult.data);
+          console.log('手动更新store中的统计数据成功:', store.state.activityStats);
+        }
+        
+        // 然后再通过store action加载一次
+        await store.dispatch('loadActivityStats');
+        console.log('通过store action加载统计数据完成:', store.state.activityStats);
+      } catch (error) {
+        console.error('初始化加载统计数据失败，将重试:', error);
+        // 出错时延迟2秒后再试一次
+        setTimeout(async () => {
+          try {
+            await store.dispatch('loadActivityStats');
+            console.log('重试加载统计数据成功:', store.state.activityStats);
+          } catch (retryError) {
+            console.error('重试加载统计数据仍然失败:', retryError);
+          }
+        }, 2000);
+      }
+      
+      // 加载其他数据
+      await loadData();
+      
+      // 启动定时刷新 - 缩短刷新间隔
+      refreshInterval.value = setInterval(async () => {
+        console.log('定时刷新数据...');
+        await loadData();
+      }, 15000); // 改为15秒刷新一次
+    })
+
+    // 组件卸载时清理资源
+    onUnmounted(() => {
+      console.log('HomeView组件卸载，清理定时刷新...');
+      if (refreshInterval.value) {
+        clearInterval(refreshInterval.value);
+        refreshInterval.value = null;
+      }
+    })
+
     onBeforeUnmount(() => {
       // 停止音乐播放
       if (bgmRef.value) {
@@ -219,7 +337,11 @@ export default {
     })
 
     return {
-      bgmRef
+      bgmRef,
+      isFormValid,
+      isFormVisible,
+      isPaymentVisible,
+      handleRegistration
     }
   }
 }

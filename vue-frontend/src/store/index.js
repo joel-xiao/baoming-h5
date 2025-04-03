@@ -1,4 +1,5 @@
 import { createStore } from 'vuex'
+import { registrationApi, paymentApi, adminApi } from '../api'
 
 export default createStore({
   state: {
@@ -57,7 +58,8 @@ export default createStore({
       amount: 0,
       status: '',  // pending, success, failed
       errorMessage: ''
-    }
+    },
+    activityStats: null
   },
   getters: {
     isActivityEnded(state) {
@@ -126,63 +128,81 @@ export default createStore({
       if (amount !== undefined) state.payment.amount = amount;
       if (status !== undefined) state.payment.status = status;
       if (errorMessage !== undefined) state.payment.errorMessage = errorMessage;
+    },
+    setActivityStats(state, stats) {
+      state.activityStats = stats;
     }
   },
   actions: {
     async loadParticipants({ commit, state }) {
       try {
         console.log('开始加载参与者数据');
-        // 在实际项目中，这里应该从API获取数据
-        // 这里使用模拟数据
-        const mockNames = [
-          '一*三', '贺*梦', 'S***e', '*', '盼**秀', 
-          '段**', 'Y*****?', '我**家', 'j****k', '永**斗', 
-          '曹*娟', '桃*桃', '囧****~', '李*锐', '魏**'
-        ];
+        // 从API获取报名人数据
+        const result = await registrationApi.getRegistrations();
         
-        const participants = [];
-        for (let i = 0; i < 3; i++) {
-          mockNames.forEach(name => {
-            participants.push({
-              name,
-              avatar: name.substr(0, 1)
-            });
-          });
+        if (result.success && Array.isArray(result.data)) {
+          // 将数据转换成参与者格式
+          const participants = result.data.map(item => ({
+            name: item.name || '匿名',
+            avatar: item.name ? item.name.substr(0, 1) : '?'
+          }));
+          
+          console.log('获取到的参与者数据数量:', participants.length);
+          commit('setParticipants', participants);
+        } else {
+          // API获取失败时，设置空数组
+          console.error('从API获取参与者数据失败');
+          commit('setParticipants', []);
         }
         
-        console.log('生成的参与者数据数量:', participants.length);
-        commit('setParticipants', participants);
         console.log('参与者数据设置完成，当前store中数量:', state.participants.length);
       } catch (error) {
         console.error('加载参与者列表失败:', error);
+        commit('setParticipants', []);
       }
     },
     async loadOrders({ commit, state }) {
       try {
-        // 在实际项目中，这里应该从API获取数据
-        // 这里使用模拟数据
-        const baseData = [
-          { name: '齐*烨', phone: '187****5808', amount: state.activityConfig.price, status: '已支付', time: '2025-2-25 21:32' },
-          { name: '任*格', phone: '186****0572', amount: state.activityConfig.price, status: '已支付', time: '2025-2-25 20:43' },
-          { name: '王*涵', phone: '184****4513', amount: state.activityConfig.price, status: '已支付', time: '2025-2-25 20:41' },
-          { name: '李*泽', phone: '137****1716', amount: state.activityConfig.price, status: '已支付', time: '2025-2-25 19:55' },
-          { name: '曹*娟', phone: '132****9127', amount: state.activityConfig.price, status: '已支付', time: '2025-2-25 18:25' }
-        ];
+        // 从API获取订单数据
+        const result = await registrationApi.getRegistrations();
         
-        const mockData = [];
-        for (let i = 0; i < 4; i++) {
-          baseData.forEach((order, index) => {
-            const hours = 21 - Math.floor(index / 2) - i * 2;
-            const minutes = 30 + (index % 2) * 15;
-            const time = `2025-2-25 ${hours}:${minutes}`;
+        if (result.success && Array.isArray(result.data)) {
+          // 只获取支付成功的订单
+          const successOrders = result.data.filter(order => order.paymentStatus === 'success');
+          
+          // 格式化订单数据
+          const formattedOrders = successOrders.map(order => {
+            // 手机号脱敏
+            const maskPhone = phone => {
+              if (!phone || phone.length !== 11) return phone;
+              return phone.substring(0, 3) + '****' + phone.substring(7);
+            };
             
-            mockData.push({ ...order, time });
+            // 格式化日期
+            const formatDate = dateString => {
+              if (!dateString) return '';
+              const date = new Date(dateString);
+              return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+            };
+            
+            return {
+              name: order.name || '匿名',
+              phone: maskPhone(order.phone || ''),
+              amount: order.paymentAmount || state.activityConfig.price,
+              status: '已支付',
+              time: formatDate(order.paymentTime || order.createdAt)
+            };
           });
+          
+          commit('setOrders', formattedOrders);
+        } else {
+          // API获取失败时，设置空数组
+          console.error('从API获取订单数据失败');
+          commit('setOrders', []);
         }
-        
-        commit('setOrders', mockData);
       } catch (error) {
         console.error('加载订单列表失败:', error);
+        commit('setOrders', []);
       }
     },
     triggerDanmu({ commit, state }, { text, userName }) {
@@ -201,20 +221,96 @@ export default createStore({
         time: new Date().getTime()
       });
     },
+    async submitRegistration({ commit, state }) {
+      try {
+        let result;
+        
+        // 根据用户类型选择不同的API
+        if (state.user.userType === 'team_leader') {
+          // 创建队长报名
+          result = await registrationApi.createTeamLeader({
+            name: state.user.name,
+            phone: state.user.phone,
+            openid: state.user.openid || 'wx_' + Date.now() // 在实际项目中应该从微信获取
+          });
+        } else {
+          // 加入团队
+          result = await registrationApi.joinTeam({
+            name: state.user.name,
+            phone: state.user.phone,
+            openid: state.user.openid || 'wx_' + Date.now(), // 在实际项目中应该从微信获取
+            teamId: state.user.teamCode
+          });
+        }
+        
+        if (result.success) {
+          // 创建支付订单
+          const paymentResult = await paymentApi.createPayment({
+            openid: state.user.openid || 'wx_' + Date.now(),
+            name: state.user.name,
+            phone: state.user.phone,
+            isTeamLeader: state.user.userType === 'team_leader',
+            amount: state.activityConfig.price
+          });
+          
+          if (paymentResult.success) {
+            // 保存订单信息
+            commit('setPaymentInfo', {
+              orderNo: paymentResult.data.orderNo,
+              amount: state.activityConfig.price,
+              status: 'pending'
+            });
+            
+            // 返回支付结果
+            return {
+              success: true,
+              paymentParams: paymentResult.data.paymentParams,
+              orderNo: paymentResult.data.orderNo
+            };
+          } else {
+            throw new Error(paymentResult.message || '创建支付订单失败');
+          }
+        }
+        
+        return result;
+      } catch (error) {
+        console.error('提交报名信息失败:', error);
+        return {
+          success: false,
+          message: error.message || '提交失败，请稍后重试'
+        };
+      }
+    },
     async checkPaymentStatus({ commit, state }, orderNo) {
       try {
-        // 在实际项目中，这里应该从API获取订单状态
-        // 这里使用模拟逻辑
-        commit('setPaymentInfo', { 
-          orderNo, 
-          status: 'pending',
-          errorMessage: ''
-        });
+        const result = await paymentApi.getPaymentStatus(orderNo);
         
-        return { status: 'pending' };
+        if (result.success) {
+          commit('setPaymentInfo', {
+            orderNo,
+            status: result.data.paymentStatus,
+            errorMessage: ''
+          });
+          
+          return {
+            success: true,
+            status: result.data.paymentStatus
+          };
+        } else {
+          throw new Error(result.message || '获取支付状态失败');
+        }
       } catch (error) {
         console.error('检查支付状态失败:', error);
-        return { status: 'failed', error: error.message };
+        commit('setPaymentInfo', {
+          status: 'failed',
+          errorMessage: error.message
+        });
+        
+        return {
+          success: false,
+          status: 'failed',
+          error: error.message
+        };
       }
     },
     setSystemError({ commit }, { type, message }) {
@@ -230,6 +326,83 @@ export default createStore({
       if (form) {
         form.style.display = 'block'
         form.scrollIntoView({ behavior: 'smooth' })
+      }
+    },
+    async loadActivityStats({ commit }) {
+      try {
+        console.log('开始加载活动统计数据和记录浏览量...');
+        
+        // 同时记录浏览量
+        let viewResponse;
+        try {
+          console.log('正在调用recordView API...');
+          viewResponse = await adminApi.recordView();
+          console.log('记录浏览量成功:', viewResponse);
+        } catch (viewError) {
+          console.error('记录浏览量失败:', viewError);
+          // 继续加载统计数据，不影响主流程
+        }
+        
+        // 获取活动统计数据
+        console.log('正在调用getStats API...');
+        const result = await adminApi.getStats();
+        console.log('获取统计数据API响应:', result);
+        
+        if (result && result.success && result.data) {
+          console.log('获取活动统计数据成功:', result.data);
+          
+          // 确保viewsCount存在且为数字
+          if (typeof result.data.viewsCount !== 'number') {
+            console.warn(`viewsCount不是数字类型: ${typeof result.data.viewsCount}, 值:`, result.data.viewsCount);
+            // 尝试转换为数字
+            if (result.data.viewsCount !== undefined && result.data.viewsCount !== null) {
+              result.data.viewsCount = Number(result.data.viewsCount);
+              if (isNaN(result.data.viewsCount)) {
+                console.warn('viewsCount转换为数字失败，设置为0');
+                result.data.viewsCount = 0;
+              }
+            } else {
+              console.warn('viewsCount不存在，设置为0');
+              result.data.viewsCount = 0;
+            }
+          }
+          
+          // 提交到store
+          commit('setActivityStats', {
+            totalCount: result.data.totalCount || 0,
+            teamLeaderCount: result.data.teamLeaderCount || 0,
+            teamMemberCount: result.data.teamMemberCount || 0,
+            totalAmount: result.data.totalAmount || 0,
+            todayCount: result.data.todayCount || 0,
+            viewsCount: result.data.viewsCount || 0
+          });
+          console.log('活动统计数据已提交到store, viewsCount =', result.data.viewsCount);
+          return result.data;
+        } else {
+          console.error('获取统计数据失败或格式错误:', result);
+          // 设置默认值
+          commit('setActivityStats', {
+            totalCount: 0,
+            teamLeaderCount: 0,
+            teamMemberCount: 0,
+            totalAmount: 0,
+            todayCount: 0,
+            viewsCount: 0
+          });
+          return null;
+        }
+      } catch (error) {
+        console.error('加载活动统计数据失败:', error);
+        // 设置默认值
+        commit('setActivityStats', {
+          totalCount: 0,
+          teamLeaderCount: 0,
+          teamMemberCount: 0,
+          totalAmount: 0,
+          todayCount: 0,
+          viewsCount: 0
+        });
+        return null;
       }
     }
   },

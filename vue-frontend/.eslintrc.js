@@ -10,6 +10,9 @@ module.exports = {
   parserOptions: {
     parser: '@babel/eslint-parser'
   },
+  globals: {
+    wx: 'readonly'
+  },
   rules: {
     'no-console': 'off',
     'no-debugger': 'off',
