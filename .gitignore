@@ -1,0 +1,35 @@
+# 全局通用忽略
+.DS_Store
+*.log
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# 前端项目忽略规则 (vue-frontend)
+/vue-frontend/node_modules/
+/vue-frontend/dist/
+/vue-frontend/coverage/
+/vue-frontend/.env.local
+/vue-frontend/.env.*.local
+/vue-frontend/npm-debug.log*
+/vue-frontend/yarn-debug.log*
+/vue-frontend/yarn-error.log*
+/vue-frontend/pnpm-debug.log*
+
+# 后端项目忽略规则 (server)
+/server/node_modules/
+/server/.env
+/server/.env.*
+/server/logs/
+/server/data/*.json
+/server/certs/*.pem
+/server/certs/*.key
+/server/certs/*.crt
+/server/uploads/*
+/server/public/uploads/*
+!/server/uploads/.gitkeep
+!/server/public/uploads/.gitkeep 
