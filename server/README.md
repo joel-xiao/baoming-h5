@@ -108,9 +108,9 @@ LOG_LEVEL=info
 - 集中处理数据库操作，便于统一错误处理和日志记录
 - 字段定义只需要一次，自动适配不同数据库
 
-## API文档
+## API接口列表
 
-API基础URL: `/api`
+完整API文档请参考项目根目录的 [API文档.md](../API文档.md)。
 
 ### 报名相关接口
 
@@ -126,50 +126,176 @@ API基础URL: `/api`
 | 接口 | 方法 | 描述 |
 |------|------|------|
 | `/payment/create` | POST | 创建支付订单 |
-| `/payment/notify` | POST | 支付回调接口 |
-| `/payment/status/:orderNo` | GET | 查询支付状态 |
+| `/payment/notify/wechat` | POST | 微信支付回调接口 |
+| `/payment/notify/alipay` | POST | 支付宝回调接口 |
+| `/payment/status/:id` | GET | 查询支付状态 |
 
 ### 管理员接口
 
 | 接口 | 方法 | 描述 |
 |------|------|------|
-| `/payment/admin/orders` | GET | 获取支付订单列表 |
 | `/admin/registrations` | GET | 获取报名记录列表 |
-| `/admin/stats` | GET | 获取统计数据 |
-| `/admin/export` | GET | 导出报名数据 |
-
-### 时间相关接口
-
-| 接口 | 方法 | 描述 |
-|------|------|------|
-| `/time/server-time` | GET | 获取服务器时间 |
+| `/admin/export/registrations` | GET | 导出报名数据 |
+| `/admin/dashboard` | GET | 获取统计数据 |
+| `/admin/config` | GET/PUT | 系统配置管理 |
 
 ## 项目结构
 
 ```
 server/
 ├── config/             # 配置文件
-├── controllers/        # 控制器
-├── middleware/         # 中间件
-├── models/             # 数据模型
-├── routes/             # 路由
-├── services/           # 业务逻辑
-├── utils/              # 工具函数
-│   ├── dataAccess.js   # 数据访问层
-│   ├── schemaBuilder.js # 模式构建器
-│   ├── modelFactory.js # 模型工厂
-│   ├── fileStorage.js  # 文件系统存储
-│   ├── logger.js       # 日志工具
-│   └── response.js     # 响应工具
-├── data/               # 文件系统存储数据 (如果使用)
+│   ├── app.js          # 应用配置
+│   └── database.js     # 数据库配置
+├── src/                # 源代码
+│   ├── api/            # API相关
+│   │   ├── controllers/  # 控制器
+│   │   ├── middlewares/  # 中间件
+│   │   ├── routes/       # 路由
+│   │   └── validators/   # 验证器
+│   ├── core/           # 核心模块
+│   │   ├── db/           # 数据库相关
+│   │   │   ├── models/     # 数据模型
+│   │   │   ├── Database.js # 数据库连接
+│   │   │   └── SchemaBuilder.js # 模式构建器
+│   │   ├── services/    # 业务服务
+│   │   └── utils/       # 工具函数
+│   │       ├── Logger.js   # 日志工具
+│   │       ├── Payment.js  # 支付工具
+│   │       └── Email.js    # 邮件工具
+│   └── app.js          # 应用主入口
 ├── logs/               # 日志文件
-├── app.js              # 应用主入口
+├── uploads/            # 上传文件目录
+├── data/               # 文件系统存储数据 (如果使用)
 └── package.json        # 项目依赖
 ```
 
 ## 开发指南
 
-1. 添加新模型时，使用 SchemaBuilder 和统一字段定义
-2. 服务层应使用 DataAccess 而不是直接操作模型
-3. 修改 DataAccess 类时需确保兼容所有数据库类型
-4. 敏感操作需要添加管理员权限验证
+1. **添加新模型**
+
+```javascript
+// src/core/db/models/NewModel.js
+const { SchemaBuilder } = require('../SchemaBuilder');
+
+const fields = {
+  name: { type: 'string', required: true },
+  description: { type: 'string' },
+  active: { type: 'boolean', default: true },
+  createdAt: { type: 'date', default: Date.now }
+};
+
+module.exports = SchemaBuilder.createModel('NewModel', fields);
+```
+
+2. **创建新的控制器**
+
+```javascript
+// src/api/controllers/newController.js
+const { NewModel } = require('../../core/db/models');
+const { DataAccess } = require('../../core/db/DataAccess');
+const logger = require('../../core/utils/Logger');
+
+const dataAccess = new DataAccess(NewModel);
+
+// 获取所有记录
+const getAllItems = async (req, res) => {
+  try {
+    const items = await dataAccess.find();
+    res.status(200).json({
+      success: true,
+      message: '获取数据成功',
+      data: items
+    });
+  } catch (error) {
+    logger.error(`获取数据错误: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: '获取数据时发生错误'
+    });
+  }
+};
+
+module.exports = {
+  getAllItems
+};
+```
+
+3. **添加新的路由**
+
+```javascript
+// src/api/routes/newRoutes.js
+const express = require('express');
+const newController = require('../controllers/newController');
+const { authMiddleware } = require('../middlewares/authMiddleware');
+
+const router = express.Router();
+
+// 公开路由
+router.get('/public', newController.getPublicItems);
+
+// 需要认证的路由
+router.get('/private', authMiddleware, newController.getPrivateItems);
+
+module.exports = router;
+```
+
+4. **注册路由**
+
+```javascript
+// src/api/routes/index.js
+const express = require('express');
+const newRoutes = require('./newRoutes');
+
+const router = express.Router();
+
+// 添加新路由
+router.use('/new', newRoutes);
+
+module.exports = router;
+```
+
+## 错误处理
+
+系统使用统一的错误处理中间件：
+
+```javascript
+// src/api/middlewares/errorMiddleware.js
+const logger = require('../../core/utils/Logger');
+
+const errorHandler = (err, req, res, next) => {
+  const statusCode = err.statusCode || 500;
+  const message = err.message || '服务器内部错误';
+  
+  logger.error(`错误: ${message}, 状态码: ${statusCode}`);
+  
+  res.status(statusCode).json({
+    success: false,
+    message,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
+};
+
+module.exports = errorHandler;
+```
+
+## 安全措施
+
+1. **JWT认证**：使用JWT进行API认证
+2. **请求验证**：使用Joi/Express Validator验证请求参数
+3. **限流**：对敏感API实施请求限制
+4. **CORS配置**：限制跨域请求
+5. **Helmet**：设置安全HTTP头部
+
+## 性能优化
+
+1. **数据库索引**：为常用查询字段创建索引
+2. **请求缓存**：使用内存缓存减少数据库查询
+3. **压缩**：使用compression中间件压缩响应
+4. **请求合并**：使用Promise.all并行处理多个异步操作
+
+## 代码规范
+
+- 使用async/await处理异步操作
+- 使用统一的错误处理流程
+- 遵循RESTful API设计原则
+- 保持代码注释完整
