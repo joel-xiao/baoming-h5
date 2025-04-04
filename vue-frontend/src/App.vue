@@ -6,7 +6,7 @@
 </template>
 
 <script>
-import SystemErrorNotice from './components/SystemErrorNotice.vue'
+import SystemErrorNotice from './components/mobile/SystemErrorNotice.vue'
 
 export default {
   name: 'App',

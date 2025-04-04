@@ -2,7 +2,7 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
 import store from './store'
-import PixelScroll from './components/PixelScroll.vue'
+import PixelScroll from './components/mobile/PixelScroll.vue'
 
 const app = createApp(App)
 
