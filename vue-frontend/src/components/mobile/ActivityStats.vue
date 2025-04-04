@@ -53,7 +53,6 @@ export default {
     const participants = computed(() => activity.participants.value || [])
     const statsData = computed(() => {
       const data = activity.stats.value
-      console.log('活动统计数据已更新:', data)
       return data || {}
     })
     
@@ -74,7 +73,6 @@ export default {
     
     // 浏览量计算属性 - 从activity.stats中获取
     const viewsCount = computed(() => {
-      console.log('从stats获取浏览量:', statsData.value?.viewsCount)
       const storeViews = statsData.value?.viewsCount
       if (storeViews !== undefined && storeViews !== null) {
         // 确保是数字
@@ -85,7 +83,6 @@ export default {
       }
       
       // 如果获取不到，返回0
-      console.warn('浏览量数据不可用，使用默认值0')
       return 0
     })
     
@@ -103,13 +100,8 @@ export default {
     
     // 刷新统计数据
     const refreshStats = async () => {
-      console.log('正在刷新统计数据...')
-      
       // 使用activity hook加载统计数据
       activity.loadStats()
-        .then(() => {
-          console.log('统计数据刷新成功:', activity.stats.value)
-        })
         .catch(err => {
           console.error('获取统计数据失败:', err)
         })
@@ -143,8 +135,6 @@ export default {
       totalHeight.value = firstList.offsetHeight
       // 获取容器高度
       containerHeight.value = participantsWrapper.value.parentElement.offsetHeight
-      
-      console.log('测量高度 - 列表高度:', totalHeight.value, '容器高度:', containerHeight.value)
     }
     
     // 基于JavaScript的滚动动画实现 - 优化版本
@@ -159,7 +149,6 @@ export default {
       
       // 检查是否有足够的内容进行滚动
       if (totalHeight.value <= containerHeight.value) {
-        console.log('内容高度不足以滚动，暂停动画')
         return
       }
       
@@ -201,93 +190,53 @@ export default {
       scrollAnimationId.value = requestAnimationFrame(scrollStep)
     }
     
-    // 同步滚动处理函数 - 重置滚动位置
-    const handleSyncScroll = () => {
-      if (participantsWrapper.value) {
-        // 重置滚动位置和方向
-        scrollPosition.value = 0
-        scrollDirection.value = 1
-        if (!isUserPaused.value) {
-          scrollPaused.value = false
-        }
-        
-        // 重新应用
-        participantsWrapper.value.style.transform = `translateY(0px)`
+    // 初始化滚动动画
+    const initScrolling = () => {
+      if (participants.value && participants.value.length > 0) {
+        // 延迟启动，确保DOM已完全渲染
+        setTimeout(() => {
+          startScrollAnimation()
+        }, 500)
       }
     }
     
-    // 数据更新后重新初始化滚动
-    const reinitializeScroll = () => {
-      // 当数据更新后，测量新的高度并重新启动滚动
-      setTimeout(() => {
-        measureHeights()
-        if (scrollAnimationId.value) {
-          cancelAnimationFrame(scrollAnimationId.value)
-          scrollAnimationId.value = null
-        }
-        startScrollAnimation()
-      }, 300) // 给DOM一点时间更新
-    }
-    
-    onMounted(async () => {
-      console.log('ActivityStats组件已挂载')
-      
-      // 首先检查store中是否已有数据
-      console.log('当前store中的活动统计数据:', activity.stats.value)
-      
-      // 只有当store中没有数据时才请求刷新
+    onMounted(() => {
+      // 组件挂载时开始检查数据
       if (!activity.stats.value) {
-        console.log('store中没有统计数据，请求刷新')
+        // 立即请求一次数据刷新
         refreshStats()
-      } else {
-        console.log('store中已有统计数据，跳过初始加载')
       }
       
-      // 设置定时刷新 - 每30秒刷新一次 (增加间隔减少请求次数)
-      refreshInterval.value = setInterval(refreshStats, 30000)
-      
-      // 确保参与者数据加载
+      // 处理参与者数据
       if (!participants.value || participants.value.length === 0) {
-        console.log('参与者数据为空，请求加载')
-        registration.loadParticipants().then(() => {
-          console.log('参与者数据加载完成，开始初始化滚动')
-          reinitializeScroll()
-        })
+        // 加载参与者数据
+        registration.loadParticipants()
+          .then(initScrolling)
       } else {
-        // 已有数据，直接初始化滚动
-        console.log('参与者数据已存在，直接初始化滚动')
-        reinitializeScroll()
+        // 数据已存在，直接初始化滚动
+        initScrolling()
       }
       
-      // 添加窗口大小变化监听
-      window.addEventListener('resize', reinitializeScroll)
+      // 设置定时刷新 - 每60秒刷新一次统计数据
+      refreshInterval.value = setInterval(refreshStats, 60000)
     })
     
     onUnmounted(() => {
-      console.log('ActivityStats组件卸载')
-      // 清除定时器
-      if (refreshInterval.value) {
-        clearInterval(refreshInterval.value)
-        refreshInterval.value = null
-      }
-      
-      // 清除动画
+      // 清除动画和定时器
       if (scrollAnimationId.value) {
         cancelAnimationFrame(scrollAnimationId.value)
-        scrollAnimationId.value = null
       }
       
-      // 移除窗口大小变化监听
-      window.removeEventListener('resize', reinitializeScroll)
+      if (refreshInterval.value) {
+        clearInterval(refreshInterval.value)
+      }
     })
     
     return {
-      participants,
-      displayedParticipants,
-      participantsCount,
+      participantsWrapper,
       participantsCountFormatted,
       viewsCount,
-      participantsWrapper,
+      displayedParticipants,
       getAvatarText,
       pauseScrolling,
       resumeScrolling

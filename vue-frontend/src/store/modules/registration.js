@@ -22,7 +22,6 @@ const actions = {
    */
   async loadParticipants({ commit, rootState }) {
     try {
-      console.log('开始加载参与者数据')
       // 使用带缓存的API以提高性能
       const result = await registrationApi.getCachedRegistrations()
       
@@ -33,7 +32,6 @@ const actions = {
           avatar: item.name ? item.name.substr(0, 1) : '?'
         }))
         
-        console.log('获取到的参与者数据数量:', participants.length)
         commit('activity/SET_PARTICIPANTS', participants, { root: true })
       } else {
         // API获取失败时，设置空数组

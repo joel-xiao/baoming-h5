@@ -6,7 +6,7 @@
       </div>
       <div class="error-message">
         {{ errorMessage }}
-        <div class="error-hint" v-if="errorMessage.includes('网络时间')">
+        <div class="error-hint" v-if="errorMessage.includes('服务器时间')">
           请检查网络连接后刷新页面重试。
         </div>
         <div class="error-hint" v-else-if="errorMessage.includes('活动已结束')">

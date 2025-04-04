@@ -41,7 +41,6 @@ const mutations = {
   },
   SET_ACTIVITY_ENDED_STATUS(state, status) {
     state.activityEnded = status
-    console.log('[Store/Activity] 设置活动结束状态:', status)
   },
   SET_ACTIVITY_STATS(state, stats) {
     state.stats = stats
@@ -54,11 +53,8 @@ const actions = {
    */
   async loadActivityStats({ commit }) {
     try {
-      console.log('开始加载活动统计数据和记录浏览量...')
-      
       // 同时记录浏览量
       try {
-        console.log('正在调用recordView API...')
         await adminApi.recordView()
       } catch (viewError) {
         console.error('记录浏览量失败:', viewError)
@@ -66,12 +62,9 @@ const actions = {
       }
       
       // 获取活动统计数据
-      console.log('正在调用getStats API...')
       const result = await adminApi.getStats()
       
       if (result?.success && result.data) {
-        console.log('获取活动统计数据成功:', result.data)
-        
         // 确保viewsCount为数字
         let viewsCount = 0
         if (typeof result.data.viewsCount === 'number') {

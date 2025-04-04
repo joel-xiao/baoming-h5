@@ -391,7 +391,6 @@ export default {
     
     // 开始弹幕动画
     const startDanmu = () => {
-      console.log('开始弹幕动画')
       // 清除可能存在的旧定时器
       if (danmuInterval) {
         clearInterval(danmuInterval);
@@ -409,11 +408,8 @@ export default {
       
       // 如果弹幕已禁用，则不启动
       if (!danmuConfig.enabled) {
-        console.log('弹幕已禁用，不启动')
         return;
       }
-      
-      console.log('弹幕已启用，频率:', danmuConfig.frequency)
       
       // 根据配置设置频率 - 更高频率产生更多弹幕
       const frequency = danmuConfig.frequency || 1000;
@@ -541,7 +537,6 @@ export default {
     }
     
     onMounted(() => {
-      console.log('DanmuContainer 已挂载')
       // 确保组件挂载完成后立即启动弹幕
       startDanmu()
       

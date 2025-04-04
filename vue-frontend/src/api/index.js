@@ -6,6 +6,7 @@
 import * as registrationModule from './modules/registration';
 import * as paymentModule from './modules/payment';
 import * as adminModule from './modules/admin';
+import * as timeModule from './modules/time';
 
 // 导入核心模块
 import apiInstance from './core/axios';
@@ -19,6 +20,7 @@ import * as apiHooks from './hooks/useApi';
 export const registrationApi = registrationModule;
 export const paymentApi = paymentModule;
 export const adminApi = adminModule;
+export const timeApi = timeModule;
 
 // 导出核心模块
 export const api = apiInstance;
@@ -60,6 +62,7 @@ export default {
   registration: registrationApi,
   payment: paymentApi,
   admin: adminApi,
+  time: timeApi,
   
   // 核心模块
   core: {

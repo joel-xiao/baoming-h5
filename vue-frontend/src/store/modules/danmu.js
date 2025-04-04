@@ -20,10 +20,7 @@ const getters = {
 
 const mutations = {
   UPDATE_DANMU_CONFIG(state, danmuConfig) {
-    console.log('[Store/Danmu] 更新弹幕配置:', state.config, '->', danmuConfig)
     state.config = { ...state.config, ...danmuConfig }
-    console.log('[Store/Danmu] 弹幕当前状态:', state.config.enabled ? '已启用' : '已禁用', 
-                '频率:', state.config.frequency)
   },
   ADD_SPECIAL_DANMU(state, danmuData) {
     state.specialDanmu.push(danmuData)

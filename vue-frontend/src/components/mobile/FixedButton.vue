@@ -105,8 +105,6 @@ export default {
     
     // 处理支付成功
     const handlePaymentSuccess = (data) => {
-      console.log('支付成功:', data)
-      
       // 触发成功弹幕
       danmu.triggerSpecialDanmu({
         type: 'success',
@@ -125,7 +123,6 @@ export default {
     
     // 处理支付失败
     const handlePaymentFailed = (data) => {
-      console.log('支付失败:', data)
       system.setError({
         show: true,
         message: data.error || '支付过程中发生错误'
@@ -134,7 +131,7 @@ export default {
     
     // 处理支付关闭
     const handlePaymentClosed = () => {
-      console.log('支付关闭')
+      // 支付关闭的处理逻辑
     }
     
     onMounted(() => {

@@ -51,7 +51,6 @@ apiInstance.interceptors.response.use(
       
       // 如果启用了离线存储，可以在这里切换到离线模式
       if (config.features.offlineStorage) {
-        console.log('切换到离线模式');
         // 实现离线存储逻辑
       }
     } else {

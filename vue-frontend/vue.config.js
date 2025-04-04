@@ -27,13 +27,7 @@ module.exports = defineConfig({
       '/api': {
         target: 'http://127.0.0.1:3001', // 确保指向后端服务的正确端口
         changeOrigin: true,
-        logLevel: 'debug', // 添加调试日志
-        onProxyReq(proxyReq, req, res) {
-          console.log('代理请求:', req.method, req.url);
-        },
-        onProxyRes(proxyRes, req, res) {
-          console.log('代理响应:', proxyRes.statusCode, req.url);
-        }
+        logLevel: 'debug' // 添加调试日志
       }
     }
   }

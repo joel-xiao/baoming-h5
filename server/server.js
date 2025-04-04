@@ -5,7 +5,6 @@ const config = require('./config');
 console.log('==============================================');
 console.log('服务器启动中...');
 console.log('当前环境:', config.app.environment);
-console.log('配置文件已加载');
 console.log('端口设置为:', config.server.port);
 console.log('==============================================');
 
@@ -17,10 +16,6 @@ const startServer = async () => {
       console.log('==============================================');
       console.log(`服务器运行在 http://127.0.0.1:${config.server.port}`);
       console.log(`也可通过局域网IP访问: http://${config.server.host}:${config.server.port}`);
-      console.log('API路由已注册:');
-      console.log(' - /api/registration');
-      console.log(' - /api/payment');
-      console.log(' - /api/admin');
       console.log('==============================================');
     });
     

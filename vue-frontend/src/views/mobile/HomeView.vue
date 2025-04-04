@@ -111,12 +111,9 @@ export default {
       
       if (playPromise !== undefined) {
         playPromise.then(() => {
-          console.log('音乐开始播放(静音状态)')
-          
           // 添加用户交互监听器，在交互后取消静音
           const unmuteAudio = () => {
             bgm.muted = false
-            console.log('用户交互后取消静音')
             // 移除事件监听器
             document.removeEventListener('click', unmuteAudio)
             document.removeEventListener('touchstart', unmuteAudio)
@@ -126,18 +123,15 @@ export default {
           document.addEventListener('click', unmuteAudio)
           document.addEventListener('touchstart', unmuteAudio)
         }).catch(error => {
-          console.log('自动播放音乐失败，可能需要用户交互:', error)
-          
           // 创建一个一次性交互处理器
           const handleInteraction = () => {
             bgm.play().then(() => {
-              console.log('用户交互后成功播放音乐')
               bgm.muted = false
               // 播放成功后移除事件监听器
               document.removeEventListener('click', handleInteraction)
               document.removeEventListener('touchstart', handleInteraction)
             }).catch(err => {
-              console.log('尝试播放失败:', err)
+              // 尝试播放失败
             })
           }
           
@@ -164,7 +158,6 @@ export default {
             
             // 显示支付界面或处理支付参数
             if (result.paymentParams) {
-              console.log('准备调用支付接口:', result.paymentParams)
               // 这里应该调用微信支付SDK
             }
           } else {
@@ -179,10 +172,8 @@ export default {
     
     // 加载数据函数
     const loadData = async () => {
-      console.log('执行loadData函数...')
       try {
         // 并行请求数据提高效率
-        console.log('并行加载所有数据...')
         const [statsPromise, participantsPromise, ordersPromise] = [
           activity.loadStats(),
           registration.loadParticipants(),
@@ -191,14 +182,9 @@ export default {
         
         // 使用Promise.all并行等待所有请求完成
         await Promise.all([statsPromise, participantsPromise, ordersPromise])
-        
-        console.log('活动统计数据刷新完成:', activity.stats.value)
-        console.log('参与者数据加载完成，数量:', activity.participants.value?.length)
-        console.log('订单数据加载完成，数量:', activity.orders.value?.length)
 
         // 检查活动是否已结束
         activity.checkActivityEnd()
-        console.log('数据加载全部完成')
       } catch (error) {
         console.error('数据加载失败:', error)
         // 显示友好错误提示
@@ -219,22 +205,18 @@ export default {
           // 用户交互后尝试播放
           bgmRef.value.play().then(() => {
             bgmRef.value.muted = false
-            console.log('用户交互后成功播放音乐并取消静音')
           }).catch(error => {
-            console.log('尽管有用户交互，播放仍然失败:', error)
+            // 尽管有用户交互，播放仍然失败
           })
         } else {
           // 如果已经在播放但是还是静音状态，则取消静音
           bgmRef.value.muted = false
-          console.log('用户交互后取消静音')
         }
       }
     }
     
     // 在组件挂载时
     onMounted(() => {
-      console.log('HomeView组件挂载...')
-      
       // 尝试播放背景音乐
       playBackgroundMusic()
       
@@ -243,7 +225,6 @@ export default {
 
       // 每隔60秒自动刷新数据
       refreshInterval.value = setInterval(() => {
-        console.log('定时刷新数据...')
         loadData()
       }, 60000)
 

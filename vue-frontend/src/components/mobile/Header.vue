@@ -83,9 +83,7 @@ export default {
             playPromise.then(() => {
               isPlaying.value = true
               showStatusMessage()
-              console.log('音乐播放成功')
             }).catch(err => {
-              console.log('播放音乐失败:', err)
               showStatus.value = true
               statusTimer = setTimeout(() => {
                 showStatus.value = false
@@ -102,14 +100,12 @@ export default {
           bgm.muted = false
           isPlaying.value = true
           showStatusMessage()
-          console.log('音乐已取消静音')
         } else {
           // 如果不是静音状态，则暂停播放
           try {
             bgm.pause()
             isPlaying.value = false
             showStatusMessage()
-            console.log('音乐已暂停')
           } catch (error) {
             console.error('暂停音乐时出错:', error)
           }

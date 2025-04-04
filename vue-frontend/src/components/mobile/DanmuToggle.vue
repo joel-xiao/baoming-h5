@@ -112,7 +112,6 @@ export default {
       }
       
       const newStatus = !isDanmuEnabled.value;
-      console.log('切换弹幕状态:', isDanmuEnabled.value, '->', newStatus);
       
       // 使用danmuHook更新配置
       const frequency = danmuHook.danmuFrequency ? danmuHook.danmuFrequency.value : 1500;
