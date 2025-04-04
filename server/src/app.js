@@ -13,11 +13,12 @@ const { dbType } = require('./config/database');
 // 导入数据库连接
 const { Database } = require('./core/db/Database');
 
+// 导入工具类
+const logger = require('./core/utils/Logger');
+const { ResponseUtil } = require('./core/utils/ResponseUtil');
+
 // 导入路由
 const apiRoutes = require('./api/routes');
-
-// 导入日志工具
-const logger = require('./core/utils/Logger');
 
 // 创建Express应用
 const app = express();
@@ -58,11 +59,7 @@ app.use(appConfig.apiPrefix, apiRoutes);
 
 // 404处理
 app.use((req, res, next) => {
-  res.status(404).json({
-    success: false,
-    message: '请求的资源不存在',
-    path: req.originalUrl
-  });
+  ResponseUtil.notFound(res, '请求的资源不存在');
 });
 
 // 错误处理中间件
@@ -74,11 +71,20 @@ app.use((err, req, res, next) => {
     ? '服务器内部错误'
     : err.message;
   
-  res.status(status).json({
-    success: false,
-    message,
-    ...(appConfig.env !== 'production' && { stack: err.stack })
-  });
+  // 使用ResponseUtil处理错误
+  switch (status) {
+    case 400:
+      return ResponseUtil.badRequest(res, message);
+    case 401:
+      return ResponseUtil.unauthorized(res, message);
+    case 403:
+      return ResponseUtil.forbidden(res, message);
+    case 404:
+      return ResponseUtil.notFound(res, message);
+    default:
+      return ResponseUtil.serverError(res, message, 
+        appConfig.env !== 'production' ? err : null);
+  }
 });
 
 // 启动应用

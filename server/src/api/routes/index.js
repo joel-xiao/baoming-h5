@@ -4,24 +4,21 @@ const paymentRoutes = require('./paymentRoutes');
 const adminRoutes = require('./adminRoutes');
 const authRoutes = require('./authRoutes');
 const statsRoutes = require('./statsRoutes');
+const { ResponseUtil } = require('../../core/utils/ResponseUtil');
 
 const router = express.Router();
 
 // 健康检查
 router.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date() });
+  ResponseUtil.success(res, 'API服务正常', { status: 'ok', timestamp: new Date() });
 });
 
 // 服务器时间API，符合前端期望格式
 router.get('/time/server-time', (req, res) => {
   const now = new Date();
-  res.json({ 
-    success: true, 
-    message: '获取服务器时间成功',
-    data: { 
-      timestamp: now.getTime(),
-      serverTime: now.toISOString()
-    }
+  ResponseUtil.success(res, '获取服务器时间成功', { 
+    timestamp: now.getTime(),
+    serverTime: now.toISOString()
   });
 });
 

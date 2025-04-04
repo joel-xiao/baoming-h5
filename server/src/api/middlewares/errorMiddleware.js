@@ -1,4 +1,5 @@
 const logger = require('../../core/utils/Logger');
+const { ResponseUtil } = require('../../core/utils/ResponseUtil');
 
 /**
  * 404错误处理中间件
@@ -26,12 +27,19 @@ const errorHandlerMiddleware = (err, req, res, next) => {
     logger.error(err.stack);
   }
   
-  // 响应错误消息
-  res.status(statusCode).json({
-    success: false,
-    message,
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-  });
+  // 使用ResponseUtil处理不同类型的错误响应
+  switch (statusCode) {
+    case 400:
+      return ResponseUtil.badRequest(res, message);
+    case 401:
+      return ResponseUtil.unauthorized(res, message);
+    case 403:
+      return ResponseUtil.forbidden(res, message);
+    case 404:
+      return ResponseUtil.notFound(res, message);
+    default:
+      return ResponseUtil.serverError(res, message, err);
+  }
 };
 
 /**
@@ -45,20 +53,12 @@ const validationErrorMiddleware = (err, req, res, next) => {
     if (err.errors) {
       const errorMessages = Object.values(err.errors).map(error => error.message);
       logger.warn(`验证错误: ${errorMessages.join(', ')}`);
-      return res.status(400).json({
-        success: false,
-        message: '请求数据验证失败',
-        errors: errorMessages
-      });
+      return ResponseUtil.badRequest(res, '请求数据验证失败', errorMessages);
     }
     
     // 如果是自定义验证错误
     logger.warn(`验证错误: ${err.message}`);
-    return res.status(400).json({
-      success: false,
-      message: '请求数据验证失败',
-      errors: [err.message]
-    });
+    return ResponseUtil.badRequest(res, '请求数据验证失败', [err.message]);
   }
   
   // 如果不是验证错误，传递给下一个错误处理中间件

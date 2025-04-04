@@ -3,6 +3,7 @@ const ModelFactory = require('../../core/db/ModelFactory');
 const Payment = require('../../core/models/Payment');
 const Registration = require('../../core/models/Registration');
 const logger = require('../../core/utils/Logger');
+const { ResponseUtil } = require('../../core/utils/ResponseUtil');
 const { PaymentService } = require('../../core/services/PaymentService');
 const appConfig = require('../../config/app');
 const { REGISTRATION_STATUS, PAYMENT_STATUS } = require('../../core/models/Registration');
@@ -28,17 +29,11 @@ const createPaymentOrder = async (req, res) => {
     
     // 验证必填字段
     if (!registrationId) {
-      return res.status(400).json({
-        success: false,
-        message: '报名表ID不能为空'
-      });
+      return ResponseUtil.badRequest(res, '报名表ID不能为空');
     }
     
     if (!amount) {
-      return res.status(400).json({
-        success: false,
-        message: '支付金额不能为空'
-      });
+      return ResponseUtil.badRequest(res, '支付金额不能为空');
     }
     
     let registrationInfo = null;
@@ -55,10 +50,7 @@ const createPaymentOrder = async (req, res) => {
       if (registrationInfo) {
         // 检查支付状态
         if (registrationInfo.paymentStatus === PAYMENT_STATUS.PAID) {
-          return res.status(400).json({
-            success: false,
-            message: '该注册记录已完成支付'
-          });
+          return ResponseUtil.badRequest(res, '该注册记录已完成支付');
         }
       }
     }
@@ -130,11 +122,7 @@ const createPaymentOrder = async (req, res) => {
       payment.errorMessage = paymentError.message;
       await payment.save();
       
-      return res.status(500).json({
-        success: false,
-        message: '创建支付接口失败',
-        error: paymentError.message
-      });
+      return ResponseUtil.serverError(res, '创建支付接口失败', paymentError);
     }
     
     // 更新支付记录
@@ -150,25 +138,18 @@ const createPaymentOrder = async (req, res) => {
     
     logger.info(`支付订单已创建: ${orderNumber}, 团队: ${payment.teamName}, 金额: ${amount}`);
     
-    res.status(201).json({
-      success: true,
-      message: '支付订单创建成功',
-      data: {
-        orderNumber: payment.orderNumber,
-        amount: payment.amount,
-        paymentMethod: payment.paymentMethod,
-        paymentUrl: payment.paymentUrl,
-        qrCode: payment.qrCode,
-        status: payment.status,
-        createdAt: payment.createdAt
-      }
+    return ResponseUtil.created(res, '支付订单创建成功', {
+      orderNumber: payment.orderNumber,
+      amount: payment.amount,
+      paymentMethod: payment.paymentMethod,
+      paymentUrl: payment.paymentUrl,
+      qrCode: payment.qrCode,
+      status: payment.status,
+      createdAt: payment.createdAt
     });
   } catch (error) {
     logger.error(`创建支付订单错误: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: '创建支付订单时发生错误'
-    });
+    return ResponseUtil.serverError(res, '创建支付订单时发生错误', error);
   }
 };
 
@@ -193,10 +174,7 @@ const getPaymentStatus = async (req, res) => {
     });
     
     if (!payment) {
-      return res.status(400).json({
-        success: false,
-        message: '支付记录不存在'
-      });
+      return ResponseUtil.notFound(res, '支付记录不存在');
     }
     
     // 如果状态是待支付且创建时间超过一天，更新为已关闭
@@ -211,25 +189,18 @@ const getPaymentStatus = async (req, res) => {
       }
     }
     
-    res.status(200).json({
-      success: true,
-      message: '获取支付状态成功',
-      data: {
-        orderNumber: payment.orderNumber,
-        amount: payment.amount,
-        paymentMethod: payment.paymentMethod,
-        status: payment.status,
-        createdAt: payment.createdAt,
-        paidAt: payment.paidAt,
-        closedAt: payment.closedAt
-      }
+    return ResponseUtil.success(res, '获取支付状态成功', {
+      orderNumber: payment.orderNumber,
+      amount: payment.amount,
+      paymentMethod: payment.paymentMethod,
+      status: payment.status,
+      createdAt: payment.createdAt,
+      paidAt: payment.paidAt,
+      closedAt: payment.closedAt
     });
   } catch (error) {
     logger.error(`查询支付状态错误: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: '查询支付状态时发生错误'
-    });
+    return ResponseUtil.serverError(res, '查询支付状态时发生错误', error);
   }
 };
 
@@ -248,6 +219,7 @@ const wechatPayNotify = async (req, res) => {
     
     if (!result.success) {
       logger.error(`微信支付回调验证失败: ${result.message}`);
+      // 微信支付回调需要特殊格式响应，不使用 ResponseUtil
       return res.status(400).json({
         code: 'FAIL',
         message: result.message
@@ -262,14 +234,15 @@ const wechatPayNotify = async (req, res) => {
       paidTime: new Date()
     });
     
-    // 返回成功响应
-    res.status(200).json({
+    // 微信支付回调需要特殊格式响应，不使用 ResponseUtil
+    return res.status(200).json({
       code: 'SUCCESS',
       message: 'OK'
     });
   } catch (error) {
     logger.error(`微信支付回调处理错误: ${error.message}`);
-    res.status(500).json({
+    // 微信支付回调需要特殊格式响应，不使用 ResponseUtil
+    return res.status(500).json({
       code: 'FAIL',
       message: error.message
     });
@@ -291,6 +264,7 @@ const alipayNotify = async (req, res) => {
     
     if (!result.success) {
       logger.error(`支付宝回调验证失败: ${result.message}`);
+      // 支付宝回调需要特殊格式响应，不使用 ResponseUtil
       return res.status(400).send('fail');
     }
     
@@ -302,11 +276,11 @@ const alipayNotify = async (req, res) => {
       paidTime: new Date(result.data.gmt_payment)
     });
     
-    // 返回成功响应
-    res.status(200).send('success');
+    // 支付宝回调需要特殊格式响应，不使用 ResponseUtil
+    return res.status(200).send('success');
   } catch (error) {
     logger.error(`支付宝回调处理错误: ${error.message}`);
-    res.status(500).send('fail');
+    return res.status(500).send('fail');
   }
 };
 
@@ -398,10 +372,7 @@ const updatePaymentStatus = async (req, res) => {
     ];
     
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: '状态无效'
-      });
+      return ResponseUtil.badRequest(res, '无效的支付状态');
     }
     
     // 获取Payment模型
@@ -451,17 +422,10 @@ const updatePaymentStatus = async (req, res) => {
     
     logger.info(`支付状态已手动更新: ${id}, 状态: ${status}, 操作者: ${req.user.username}`);
     
-    res.status(200).json({
-      success: true,
-      message: '支付状态更新成功',
-      data: payment
-    });
+    return ResponseUtil.success(res, '支付状态更新成功', payment);
   } catch (error) {
     logger.error(`手动更新支付状态错误: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: '更新支付状态时发生错误'
-    });
+    return ResponseUtil.serverError(res, '更新支付状态时发生错误', error);
   }
 };
 
@@ -487,32 +451,22 @@ const getPaymentsByRegistration = async (req, res) => {
     const registration = await registrationModel.findById(registrationId);
     
     if (!registration) {
-      return res.status(400).json({
-        success: false,
-        message: '注册记录不存在'
-      });
+      return ResponseUtil.notFound(res, '注册记录不存在');
     }
     
-    res.status(200).json({
-      success: true,
-      message: '获取支付记录成功',
-      data: {
-        registration: {
-          id: registration._id,
-          teamName: registration.teamName,
-          paymentStatus: registration.paymentStatus,
-          paidAmount: registration.paidAmount || 0,
-          totalAmount: registration.totalAmount || 0
-        },
-        payments
-      }
+    return ResponseUtil.success(res, '获取支付记录成功', {
+      registration: {
+        id: registration._id,
+        teamName: registration.teamName,
+        paymentStatus: registration.paymentStatus,
+        paidAmount: registration.paidAmount || 0,
+        totalAmount: registration.totalAmount || 0
+      },
+      payments
     });
   } catch (error) {
     logger.error(`获取注册记录支付列表错误: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: '获取支付记录时发生错误'
-    });
+    return ResponseUtil.serverError(res, '获取支付记录时发生错误', error);
   }
 };
 
@@ -554,25 +508,18 @@ const getAllPaymentOrders = async (req, res) => {
     // 获取总记录数
     const total = await paymentModel.countDocuments(query);
     
-    res.status(200).json({
-      success: true,
-      message: '获取支付订单成功',
-      data: {
-        payments,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
+    return ResponseUtil.success(res, '获取支付订单成功', {
+      payments,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
       }
     });
   } catch (error) {
     logger.error(`获取支付订单错误: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: '获取支付订单时发生错误'
-    });
+    return ResponseUtil.serverError(res, '获取支付订单时发生错误', error);
   }
 };
 
@@ -593,26 +540,17 @@ const refundPayment = async (req, res) => {
     const payment = await paymentModel.findById(id);
     
     if (!payment) {
-      return res.status(400).json({
-        success: false,
-        message: '支付记录不存在'
-      });
+      return ResponseUtil.notFound(res, '支付记录不存在');
     }
     
     // 检查支付状态
     if (payment.status !== PAYMENT_ORDER_STATUS.PAID) {
-      return res.status(400).json({
-        success: false,
-        message: '只能对已支付的订单进行退款'
-      });
+      return ResponseUtil.badRequest(res, '只能对已支付的订单进行退款');
     }
     
     // 检查退款金额
     if (amount > payment.paidAmount) {
-      return res.status(400).json({
-        success: false,
-        message: '退款金额不能大于支付金额'
-      });
+      return ResponseUtil.badRequest(res, '退款金额不能大于支付金额');
     }
     
     // 初始化支付服务
@@ -695,12 +633,12 @@ const refundPayment = async (req, res) => {
       registration.paidAmount = totalPaid;
       
       if (totalPaid <= 0) {
-        registration.paymentStatus = '未支付';
+        registration.paymentStatus = PAYMENT_STATUS.UNPAID;
         registration.paidAt = null;
       } else if (totalPaid >= registration.totalAmount) {
-        registration.paymentStatus = '已支付';
+        registration.paymentStatus = PAYMENT_STATUS.PAID;
       } else {
-        registration.paymentStatus = '部分支付';
+        registration.paymentStatus = PAYMENT_STATUS.PARTIALLY_PAID;
       }
       
       await registration.save();

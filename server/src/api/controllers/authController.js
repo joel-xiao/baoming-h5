@@ -4,7 +4,9 @@ const crypto = require('crypto');
 const appConfig = require('../../config/app');
 const ModelFactory = require('../../core/db/ModelFactory');
 const Admin = require('../../core/models/Admin');
+const { ADMIN_ROLE, ADMIN_STATUS } = require('../../core/constants');
 const logger = require('../../core/utils/Logger');
+const { ResponseUtil } = require('../../core/utils/ResponseUtil');
 const { sendEmail } = require('../../core/utils/EmailService');
 
 /**
@@ -51,19 +53,13 @@ const login = async (req, res) => {
     
     // 检查用户是否存在
     if (!admin) {
-      return res.status(401).json({
-        success: false,
-        message: '用户名或密码错误'
-      });
+      return ResponseUtil.unauthorized(res, '用户名或密码错误');
     }
     
     // 检查用户状态
-    if (admin.status === '禁用') {
+    if (admin.status === ADMIN_STATUS.DISABLED) {
       logger.warn(`禁用账户尝试登录: ${username}`);
-      return res.status(403).json({
-        success: false,
-        message: '账号已被禁用，请联系管理员'
-      });
+      return ResponseUtil.forbidden(res, '账号已被禁用，请联系管理员');
     }
     
     // 验证密码
@@ -71,10 +67,7 @@ const login = async (req, res) => {
     
     if (!isMatch) {
       logger.warn(`密码错误的登录尝试: ${username}`);
-      return res.status(401).json({
-        success: false,
-        message: '用户名或密码错误'
-      });
+      return ResponseUtil.unauthorized(res, '用户名或密码错误');
     }
     
     // 生成JWT令牌
@@ -87,26 +80,19 @@ const login = async (req, res) => {
     logger.info(`管理员登录成功: ${username}`);
     
     // 返回令牌
-    res.status(200).json({
-      success: true,
-      message: '登录成功',
-      data: {
-        ...tokens,
-        user: {
-          id: admin._id,
-          username: admin.username,
-          name: admin.name,
-          role: admin.role,
-          lastLogin: admin.lastLogin
-        }
+    return ResponseUtil.success(res, '登录成功', {
+      ...tokens,
+      user: {
+        id: admin._id,
+        username: admin.username,
+        name: admin.name,
+        role: admin.role,
+        lastLogin: admin.lastLogin
       }
     });
   } catch (error) {
     logger.error(`登录错误: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: '登录过程中发生错误'
-    });
+    return ResponseUtil.serverError(res, '登录过程中发生错误', error);
   }
 };
 
@@ -120,10 +106,7 @@ const refreshToken = async (req, res) => {
     const { refreshToken } = req.body;
     
     if (!refreshToken) {
-      return res.status(400).json({
-        success: false,
-        message: '缺少刷新令牌'
-      });
+      return ResponseUtil.badRequest(res, '缺少刷新令牌');
     }
     
     // 验证刷新令牌
@@ -135,35 +118,22 @@ const refreshToken = async (req, res) => {
     // 查找用户
     const admin = await adminModel.findById(decoded.id);
     
-    if (!admin || admin.status === '禁用') {
-      return res.status(401).json({
-        success: false,
-        message: '无效的刷新令牌'
-      });
+    if (!admin || admin.status === ADMIN_STATUS.DISABLED) {
+      return ResponseUtil.unauthorized(res, '无效的刷新令牌');
     }
     
     // 生成新的令牌
     const tokens = generateTokens(admin);
     
-    res.status(200).json({
-      success: true,
-      message: '令牌刷新成功',
-      data: tokens
-    });
+    return ResponseUtil.success(res, '令牌刷新成功', tokens);
   } catch (error) {
     logger.error(`刷新令牌错误: ${error.message}`);
     
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        success: false,
-        message: '刷新令牌已过期，请重新登录'
-      });
+      return ResponseUtil.unauthorized(res, '刷新令牌已过期，请重新登录');
     }
     
-    res.status(401).json({
-      success: false,
-      message: '无效的刷新令牌'
-    });
+    return ResponseUtil.unauthorized(res, '无效的刷新令牌');
   }
 };
 
@@ -177,16 +147,10 @@ const logout = async (req, res) => {
     // 这里我们不做任何令牌黑名单操作，因为JWT是无状态的
     // 客户端应删除令牌
     
-    res.status(200).json({
-      success: true,
-      message: '成功退出登录'
-    });
+    return ResponseUtil.success(res, '成功退出登录');
   } catch (error) {
     logger.error(`退出登录错误: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: '退出过程中发生错误'
-    });
+    return ResponseUtil.serverError(res, '退出过程中发生错误', error);
   }
 };
 

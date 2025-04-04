@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs-extra');
 const crypto = require('crypto');
 const logger = require('../../core/utils/Logger');
+const { ResponseUtil } = require('../../core/utils/ResponseUtil');
 const appConfig = require('../../config/app');
 
 // 确保上传目录存在
@@ -76,30 +77,21 @@ const singleUpload = (fieldName = 'file') => {
         if (err instanceof multer.MulterError) {
           // Multer错误
           if (err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({
-              success: false,
-              message: `文件大小超出限制 (最大 ${appConfig.upload.maxSize}MB)`
-            });
+            return ResponseUtil.badRequest(res, 
+              `文件大小超出限制 (最大 ${appConfig.upload.maxSize}MB)`);
           }
           
           if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-            return res.status(400).json({
-              success: false,
-              message: `意外的字段名: ${err.field}`
-            });
+            return ResponseUtil.badRequest(res, 
+              `意外的字段名: ${err.field}`);
           }
           
-          return res.status(400).json({
-            success: false,
-            message: `文件上传错误: ${err.message}`
-          });
+          return ResponseUtil.badRequest(res, 
+            `文件上传错误: ${err.message}`);
         }
         
         // 其他错误
-        return res.status(400).json({
-          success: false,
-          message: err.message
-        });
+        return ResponseUtil.badRequest(res, err.message);
       }
       
       // 如果成功上传，添加完整URL到文件对象
@@ -131,30 +123,21 @@ const multiUpload = (fieldName = 'files', maxCount = 5) => {
         if (err instanceof multer.MulterError) {
           // Multer错误
           if (err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({
-              success: false,
-              message: `文件大小超出限制 (最大 ${appConfig.upload.maxSize}MB)`
-            });
+            return ResponseUtil.badRequest(res, 
+              `文件大小超出限制 (最大 ${appConfig.upload.maxSize}MB)`);
           }
           
           if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-            return res.status(400).json({
-              success: false,
-              message: `意外的字段名或文件数量超出限制`
-            });
+            return ResponseUtil.badRequest(res, 
+              `意外的字段名或文件数量超出限制`);
           }
           
-          return res.status(400).json({
-            success: false,
-            message: `文件上传错误: ${err.message}`
-          });
+          return ResponseUtil.badRequest(res, 
+            `文件上传错误: ${err.message}`);
         }
         
         // 其他错误
-        return res.status(400).json({
-          success: false,
-          message: err.message
-        });
+        return ResponseUtil.badRequest(res, err.message);
       }
       
       // 如果成功上传，添加完整URL到每个文件对象
@@ -187,30 +170,21 @@ const fieldsUpload = (fields) => {
         if (err instanceof multer.MulterError) {
           // Multer错误
           if (err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({
-              success: false,
-              message: `文件大小超出限制 (最大 ${appConfig.upload.maxSize}MB)`
-            });
+            return ResponseUtil.badRequest(res, 
+              `文件大小超出限制 (最大 ${appConfig.upload.maxSize}MB)`);
           }
           
           if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-            return res.status(400).json({
-              success: false,
-              message: `意外的字段名或文件数量超出限制`
-            });
+            return ResponseUtil.badRequest(res, 
+              `意外的字段名或文件数量超出限制`);
           }
           
-          return res.status(400).json({
-            success: false,
-            message: `文件上传错误: ${err.message}`
-          });
+          return ResponseUtil.badRequest(res, 
+            `文件上传错误: ${err.message}`);
         }
         
         // 其他错误
-        return res.status(400).json({
-          success: false,
-          message: err.message
-        });
+        return ResponseUtil.badRequest(res, err.message);
       }
       
       // 如果成功上传，添加完整URL到每个文件对象

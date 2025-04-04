@@ -1,6 +1,7 @@
 const express = require('express');
 const adminController = require('../controllers/adminController');
 const { authMiddleware, adminMiddleware } = require('../middlewares/authMiddleware');
+const { ResponseUtil } = require('../../core/utils/ResponseUtil');
 
 const router = express.Router();
 
@@ -41,10 +42,7 @@ router.get('/export/payments', adminController.exportPayments);
  * @access  Private (Admin)
  */
 router.post('/import/registrations', (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: '此功能尚未实现'
-  });
+  ResponseUtil.error(res, '此功能尚未实现', 501);
 });
 
 /**

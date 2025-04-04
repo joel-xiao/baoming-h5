@@ -6,6 +6,7 @@ const Registration = require('../../core/models/Registration');
 const Payment = require('../../core/models/Payment');
 const logger = require('../../core/utils/Logger');
 const { ExportService } = require('../../core/services/ExportService');
+const { ADMIN_ROLE, ADMIN_STATUS } = require('../../core/constants');
 
 /**
  * 获取所有注册记录
@@ -286,7 +287,7 @@ const getAllUsers = async (req, res) => {
  */
 const createUser = async (req, res) => {
   try {
-    const { username, password, email, name, role = '管理员', status = '启用' } = req.body;
+    const { username, password, email, name, role = ADMIN_ROLE.ADMIN, status = ADMIN_STATUS.ACTIVE } = req.body;
     
     // 获取Admin模型
     const adminModel = ModelFactory.getModel(Admin);
@@ -359,14 +360,14 @@ const updateUser = async (req, res) => {
     const { email, name, role, status } = req.body;
     
     // 超级管理员不能被降级
-    if (role && role !== '超级管理员') {
+    if (role && role !== ADMIN_ROLE.SUPER_ADMIN) {
       // 获取Admin模型
       const adminModel = ModelFactory.getModel(Admin);
       
       // 查找用户
       const user = await adminModel.findById(id);
       
-      if (user && user.role === '超级管理员') {
+      if (user && user.role === ADMIN_ROLE.SUPER_ADMIN) {
         return res.status(403).json({
           success: false,
           message: '不能降级超级管理员'
@@ -430,7 +431,7 @@ const deleteUser = async (req, res) => {
     }
     
     // 检查是否是超级管理员
-    if (user.role === '超级管理员') {
+    if (user.role === ADMIN_ROLE.SUPER_ADMIN) {
       return res.status(403).json({
         success: false,
         message: '不能删除超级管理员'

@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator');
 const logger = require('../../core/utils/Logger');
+const { ResponseUtil } = require('../../core/utils/ResponseUtil');
 
 /**
  * 验证中间件
@@ -23,11 +24,7 @@ const validate = (validations) => {
       
       logger.warn(`请求验证失败: ${errorMessages.join(', ')}`);
       
-      return res.status(400).json({
-        success: false,
-        message: '请求数据验证失败',
-        errors: errorMessages
-      });
+      return ResponseUtil.badRequest(res, '请求数据验证失败', errorMessages);
     }
     
     // 验证通过，继续下一个中间件
@@ -44,11 +41,7 @@ const handleValidationError = (err, req, res, next) => {
   if (err && err.name === 'ValidationError') {
     logger.warn(`验证错误: ${err.message}`);
     
-    return res.status(400).json({
-      success: false,
-      message: '请求数据验证失败',
-      errors: [err.message]
-    });
+    return ResponseUtil.badRequest(res, '请求数据验证失败', [err.message]);
   }
   
   // 继续到下一个中间件
@@ -60,10 +53,7 @@ const handleValidationError = (err, req, res, next) => {
  */
 const validateRequestBody = (req, res, next) => {
   if (!req.body || Object.keys(req.body).length === 0) {
-    return res.status(400).json({
-      success: false,
-      message: '请求体不能为空'
-    });
+    return ResponseUtil.badRequest(res, '请求体不能为空');
   }
   
   next();
@@ -81,11 +71,11 @@ const allowFields = (allowedFields) => {
     const invalidFields = requestFields.filter(field => !allowedFields.includes(field));
     
     if (invalidFields.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: '请求包含不允许的字段',
-        errors: invalidFields.map(field => `不允许的字段: ${field}`)
-      });
+      return ResponseUtil.badRequest(
+        res, 
+        '请求包含不允许的字段', 
+        invalidFields.map(field => `不允许的字段: ${field}`)
+      );
     }
     
     next();
