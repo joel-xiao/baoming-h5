@@ -1,31 +1,49 @@
 {
   "name": "baoming-server",
   "version": "1.0.0",
-  "description": "baoming-server",
-  "main": "server.js",
+  "description": "团队报名系统服务端",
+  "main": "src/app.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "baoming",
-    "wechat",
-    "payment",
-    "server"
+    "team",
+    "registration",
+    "payment"
   ],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "axios": "^1.6.7",
-    "body-parser": "^1.20.2",
+    "alipay-sdk": "^3.6.1",
+    "axios": "^1.8.4",
+    "bcrypt": "^5.1.1",
+    "compression": "^1.8.0",
+    "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.1",
-    "express": "^4.18.2",
-    "mongoose": "^8.1.1",
-    "wechatpay-node-v3": "^2.1.7"
+    "dotenv": "^16.4.7",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.2.1",
+    "fs-extra": "^11.3.0",
+    "helmet": "^7.2.0",
+    "joi": "^17.11.0",
+    "json2csv": "^6.0.0-alpha.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^7.8.6",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.14.0",
+    "nodemailer": "^6.10.0",
+    "sequelize": "^6.37.7",
+    "uuid": "^9.0.1",
+    "wechatpay-node-v3": "^2.1.5",
+    "winston": "^3.17.0",
+    "winston-daily-rotate-file": "^4.7.1"
   },
   "devDependencies": {
-    "nodemon": "^3.0.3"
+    "nodemon": "^3.1.9"
   }
-} 
+}
