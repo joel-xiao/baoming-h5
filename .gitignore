@@ -30,10 +30,6 @@ pnpm-debug.log*
 
 # 后端项目忽略规则 (server)
 /server/node_modules/
-/server/dist/
-/server/build/
-/server/coverage/
-/server/temp/
 /server/.env.local
 /server/.env.*.local
 /server/logs/
@@ -41,8 +37,7 @@ pnpm-debug.log*
 /server/data/
 /server/data/*.json
 /server/uploads/
-!/server/logs/.gitkeep
-!/server/data/.gitkeep
+/server/uploads/*
 
 # 其他忽略
 .DS_Store

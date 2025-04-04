@@ -12,7 +12,7 @@ const config = {
   
   // API配置
   api: {
-    baseURL: process.env.VUE_APP_API_URL || 'http://localhost:3001/api',
+    baseURL: process.env.VUE_APP_API_URL || 'http://localhost:3000/api',
     timeout: parseInt(process.env.VUE_APP_API_TIMEOUT || '30000', 10)
   },
   

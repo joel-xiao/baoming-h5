@@ -11,7 +11,7 @@ import { withCache } from '../core/cache';
  */
 export const getServerTime = async () => {
   try {
-    return await apiInstance.get('/time/server-time');
+    return await apiInstance.get('/time');
   } catch (error) {
     return handleApiError(error);
   }
@@ -19,7 +19,7 @@ export const getServerTime = async () => {
 
 // 使用缓存优化获取服务器时间
 export const getCachedServerTime = withCache(getServerTime, {
-  cacheTime: 5 * 1000 // 5秒缓存
+  cacheTime: 30 * 1000 // 30秒缓存
 });
 
 // 导出所有API

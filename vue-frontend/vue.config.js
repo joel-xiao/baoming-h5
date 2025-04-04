@@ -25,7 +25,7 @@ module.exports = defineConfig({
     port: 8080, // 指定端口
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:3001', // 确保指向后端服务的正确端口
+        target: 'http://127.0.0.1:3000', // 确保指向后端服务的正确端口
         changeOrigin: true,
         logLevel: 'debug' // 添加调试日志
       }

@@ -1,80 +1,76 @@
 /**
- * API错误处理工具
+ * API错误处理
  */
-
-// 通用错误消息
-const ERROR_MESSAGES = {
-  NETWORK: '网络连接失败，请检查您的网络',
-  SERVER: '服务器错误，请稍后再试',
-  TIMEOUT: '请求超时，请稍后再试',
-  UNAUTHORIZED: '登录已过期，请重新登录',
-  NOT_FOUND: '请求的资源不存在',
-  GENERAL: '请求失败，请稍后再试'
-};
 
 /**
- * 获取友好的错误消息
- * @param {Error} error - 捕获的错误对象
- * @returns {string} 友好的错误消息
+ * 处理API错误
+ * @param {Error} error - 错误对象
+ * @returns {Object} 标准化的错误响应
  */
-export const getFriendlyErrorMessage = (error) => {
-  if (!error) {
-    return ERROR_MESSAGES.GENERAL;
+export const handleApiError = (error) => {
+  // 如果是API直接返回的错误对象（已被拦截器处理）
+  if (error && typeof error === 'object' && 'success' in error) {
+    return error;
+  }
+
+  // 如果是响应错误
+  if (error.response) {
+    const { status, data } = error.response;
+
+    // 如果响应中已有标准格式的错误信息
+    if (data && typeof data === 'object' && 'message' in data) {
+      return {
+        success: false,
+        message: data.message,
+        status,
+        error: data.error || 'API_ERROR'
+      };
+    }
+
+    // 否则构造标准错误响应
+    return {
+      success: false,
+      message: getStatusMessage(status),
+      status,
+      error: 'API_ERROR'
+    };
   }
 
   // 网络错误
-  if (!error.response && error.request) {
-    return ERROR_MESSAGES.NETWORK;
+  if (error.request) {
+    return {
+      success: false,
+      message: '网络错误，无法连接到服务器',
+      error: 'NETWORK_ERROR'
+    };
   }
 
-  // 超时错误
-  if (error.code === 'ECONNABORTED') {
-    return ERROR_MESSAGES.TIMEOUT;
-  }
-
-  // 服务器返回的错误
-  if (error.response) {
-    const { status, data } = error.response;
-    
-    // 优先使用服务器返回的错误消息
-    if (data && data.message) {
-      return data.message;
-    }
-    
-    // 根据状态码返回友好消息
-    switch (status) {
-      case 401:
-        return ERROR_MESSAGES.UNAUTHORIZED;
-      case 404:
-        return ERROR_MESSAGES.NOT_FOUND;
-      case 500:
-        return ERROR_MESSAGES.SERVER;
-      default:
-        return ERROR_MESSAGES.GENERAL;
-    }
-  }
-  
-  // 返回错误消息或默认消息
-  return error.message || ERROR_MESSAGES.GENERAL;
-};
-
-/**
- * 处理API错误，并返回标准化的错误响应
- * @param {Error} error - 捕获的错误对象
- * @returns {Object} 标准化的错误响应对象
- */
-export const handleApiError = (error) => {
-  const errorMessage = getFriendlyErrorMessage(error);
-  console.error('API请求失败:', errorMessage, error);
-  
+  // 其他错误
   return {
     success: false,
-    message: errorMessage,
-    error: process.env.NODE_ENV === 'development' ? error : undefined
+    message: error.message || '发生未知错误',
+    error: 'UNKNOWN_ERROR'
   };
 };
 
-export default {
-  getFriendlyErrorMessage,
-  handleApiError
-}; 
+/**
+ * 获取HTTP状态码对应的错误消息
+ * @param {number} status - HTTP状态码
+ * @returns {string} 错误消息
+ */
+const getStatusMessage = (status) => {
+  const messages = {
+    400: '请求参数错误',
+    401: '未授权，请重新登录',
+    403: '权限不足，无法访问',
+    404: '请求的资源不存在',
+    500: '服务器内部错误',
+    502: '网关错误',
+    503: '服务不可用',
+    504: '网关超时'
+  };
+
+  return messages[status] || `请求失败，状态码: ${status}`;
+};
+
+export default { handleApiError }; 

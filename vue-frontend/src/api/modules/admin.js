@@ -6,24 +6,14 @@ import { handleApiError } from '../core/errorHandler';
 import { withCache } from '../core/cache';
 
 /**
- * 获取统计数据
+ * 获取统计面板数据
+ * @param {Object} params - 查询参数
+ * @param {string} params.period - 统计周期 (today/week/month/year)，默认today
  * @returns {Promise<Object>} 统计数据
  */
-export const getStats = async () => {
+export const getDashboard = async (params = {}) => {
   try {
-    return await apiInstance.get('/admin/stats');
-  } catch (error) {
-    return handleApiError(error);
-  }
-};
-
-/**
- * 记录浏览量
- * @returns {Promise<Object>} 浏览量记录结果
- */
-export const recordView = async () => {
-  try {
-    return await apiInstance.post('/admin/record-view');
+    return await apiInstance.get('/admin/dashboard', { params });
   } catch (error) {
     return handleApiError(error);
   }
@@ -32,9 +22,13 @@ export const recordView = async () => {
 /**
  * 获取所有报名记录
  * @param {Object} params - 查询参数
- * @param {number} params.page - 页码
- * @param {number} params.limit - 每页数量
- * @param {string} params.status - 支付状态
+ * @param {number} params.page - 页码，默认1
+ * @param {number} params.limit - 每页数量，默认20
+ * @param {string} params.status - 筛选状态
+ * @param {string} params.search - 搜索关键词
+ * @param {string} params.category - 赛事类别
+ * @param {string} params.sort - 排序字段
+ * @param {string} params.order - 排序方向 (asc/desc)
  * @returns {Promise<Object>} 报名记录列表
  */
 export const getRegistrations = async (params = {}) => {
@@ -48,13 +42,16 @@ export const getRegistrations = async (params = {}) => {
 /**
  * 导出报名数据
  * @param {Object} params - 导出参数
- * @param {string} params.status - 支付状态
- * @param {string} params.format - 导出格式
+ * @param {string} params.format - 导出格式 (csv/excel)，默认excel
+ * @param {string} params.status - 筛选状态
+ * @param {string} params.category - 赛事类别
+ * @param {string} params.startDate - 开始日期
+ * @param {string} params.endDate - 结束日期
  * @returns {Promise<Blob>} 导出文件的Blob对象
  */
-export const exportData = async (params = {}) => {
+export const exportRegistrations = async (params = {}) => {
   try {
-    return await apiInstance.get('/admin/export', { 
+    return await apiInstance.get('/admin/export/registrations', { 
       params,
       responseType: 'blob' // 用于下载文件
     });
@@ -72,38 +69,158 @@ export const exportData = async (params = {}) => {
  */
 export const login = async (data) => {
   try {
-    return await apiInstance.post('/admin/login', data);
+    return await apiInstance.post('/auth/login', data);
   } catch (error) {
     return handleApiError(error);
   }
 };
 
 /**
- * 更新报名状态
+ * 审核报名
  * @param {string} id - 报名ID
+ * @param {Object} data - 审核数据
+ * @param {string} data.status - 审核状态 (approved/rejected)
+ * @param {string} data.remarks - 审核备注，拒绝时必填
+ * @returns {Promise<Object>} 审核结果
+ */
+export const reviewRegistration = async (id, data) => {
+  try {
+    return await apiInstance.put(`/registration/${id}/review`, data);
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+/**
+ * 获取系统配置
+ * @returns {Promise<Object>} 系统配置
+ */
+export const getConfig = async () => {
+  try {
+    return await apiInstance.get('/admin/config');
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+/**
+ * 更新系统配置
+ * @param {Object} data - 配置数据
+ * @returns {Promise<Object>} 更新结果
+ */
+export const updateConfig = async (data) => {
+  try {
+    return await apiInstance.put('/admin/config', data);
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+/**
+ * 获取管理员用户列表
+ * @param {Object} params - 查询参数
+ * @param {number} params.page - 页码，默认1
+ * @param {number} params.limit - 每页数量，默认20
+ * @param {string} params.role - 筛选角色
+ * @param {string} params.status - 筛选状态
+ * @param {string} params.search - 搜索关键词
+ * @returns {Promise<Object>} 用户列表
+ */
+export const getUsers = async (params = {}) => {
+  try {
+    return await apiInstance.get('/admin/users', { params });
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+/**
+ * 创建管理员账号
+ * @param {Object} data - 用户数据
+ * @returns {Promise<Object>} 创建结果
+ */
+export const createUser = async (data) => {
+  try {
+    return await apiInstance.post('/admin/users', data);
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+/**
+ * 更新管理员账号
+ * @param {string} id - 用户ID
  * @param {Object} data - 更新数据
  * @returns {Promise<Object>} 更新结果
  */
-export const updateRegistration = async (id, data) => {
+export const updateUser = async (id, data) => {
   try {
-    return await apiInstance.put(`/admin/registration/${id}`, data);
+    return await apiInstance.put(`/admin/users/${id}`, data);
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+/**
+ * 删除管理员账号
+ * @param {string} id - 用户ID
+ * @returns {Promise<Object>} 删除结果
+ */
+export const deleteUser = async (id) => {
+  try {
+    return await apiInstance.delete(`/admin/users/${id}`);
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+/**
+ * 重置管理员密码
+ * @param {string} id - 用户ID
+ * @param {Object} data - 密码数据
+ * @param {string} data.newPassword - 新密码
+ * @returns {Promise<Object>} 重置结果
+ */
+export const resetUserPassword = async (id, data) => {
+  try {
+    return await apiInstance.post(`/admin/users/${id}/reset-password`, data);
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+/**
+ * 获取系统日志
+ * @param {Object} params - 查询参数
+ * @returns {Promise<Object>} 日志列表
+ */
+export const getLogs = async (params = {}) => {
+  try {
+    return await apiInstance.get('/admin/logs', { params });
   } catch (error) {
     return handleApiError(error);
   }
 };
 
 // 使用缓存优化获取统计数据
-export const getCachedStats = withCache(getStats, {
+export const getCachedDashboard = withCache(getDashboard, {
   cacheTime: 60 * 1000 // 1分钟缓存
 });
 
 // 导出所有API
 export default {
-  getStats,
-  recordView,
+  getDashboard,
   getRegistrations,
-  exportData,
+  exportRegistrations,
   login,
-  updateRegistration,
-  getCachedStats
+  reviewRegistration,
+  getConfig,
+  updateConfig,
+  getUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+  resetUserPassword,
+  getLogs,
+  getCachedDashboard
 }; 

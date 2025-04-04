@@ -43,8 +43,17 @@ apiInstance.interceptors.response.use(
       if (error.response.status === 401) {
         // 清除token并跳转到登录页
         localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        
         // 使用路由导航到登录页（需在组件中处理）
+        // 也可以触发一个全局事件，由全局监听器处理
+        const authErrorEvent = new CustomEvent('auth-error', {
+          detail: { status: 401, message: '登录已过期，请重新登录' }
+        });
+        window.dispatchEvent(authErrorEvent);
       }
+      
+      return Promise.reject(error.response.data);
     } else if (error.request) {
       // 请求发送但没有收到响应
       console.error('网络错误，服务器未响应');
@@ -53,11 +62,22 @@ apiInstance.interceptors.response.use(
       if (config.features.offlineStorage) {
         // 实现离线存储逻辑
       }
+      
+      return Promise.reject({
+        success: false,
+        message: '网络错误，无法连接到服务器',
+        error: 'NETWORK_ERROR'
+      });
     } else {
       // 请求设置触发的错误
       console.error('请求错误:', error.message);
+      
+      return Promise.reject({
+        success: false,
+        message: '请求错误: ' + error.message,
+        error: 'REQUEST_ERROR'
+      });
     }
-    return Promise.reject(error);
   }
 );
 
