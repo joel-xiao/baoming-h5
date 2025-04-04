@@ -26,11 +26,13 @@
 <script>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
+import { useDanmu } from '../store/hooks'
 
 export default {
   name: 'DanmuToggle',
   setup() {
     const store = useStore()
+    const danmuHook = useDanmu()
     const showText = ref(false)
     const touchStartTime = ref(0)
     const isTouchMove = ref(false)
@@ -57,7 +59,12 @@ export default {
     
     // 通过计算属性获取弹幕状态
     const isDanmuEnabled = computed(() => {
-      return store.state.activityConfig.danmu.enabled;
+      // 检查danmuHook是否初始化
+      if (!danmuHook || !danmuHook.isDanmuEnabled) {
+        console.error('弹幕Hook未正确初始化');
+        return false;
+      }
+      return danmuHook.isDanmuEnabled.value;
     })
     
     // 处理触摸开始
@@ -99,13 +106,19 @@ export default {
         e.stopPropagation();
       }
       
+      if (!danmuHook || !danmuHook.isDanmuEnabled || !danmuHook.updateDanmuConfig) {
+        console.error('弹幕Hook未正确初始化，无法切换弹幕状态');
+        return;
+      }
+      
       const newStatus = !isDanmuEnabled.value;
       console.log('切换弹幕状态:', isDanmuEnabled.value, '->', newStatus);
       
-      // 直接修改store状态
-      store.commit('updateDanmuConfig', {
+      // 使用danmuHook更新配置
+      const frequency = danmuHook.danmuFrequency ? danmuHook.danmuFrequency.value : 1500;
+      danmuHook.updateDanmuConfig({
         enabled: newStatus,
-        frequency: store.state.activityConfig.danmu.frequency
+        frequency: frequency
       });
       
       // 如果关闭弹幕，立即触发事件通知清除弹幕
