@@ -30,8 +30,6 @@
 <script>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
-// 移除直接使用adminApi
-// import { adminApi } from '../api'
 
 export default {
   name: 'ActivityStats',
@@ -71,36 +69,10 @@ export default {
       return formatted
     })
     
-    // 当前浏览量（直接显示数据）
-    const directViewsCount = ref(0);
-
-    // 尝试直接获取最新浏览量数据
-    const getLatestViewCount = async () => {
-      try {
-        const { adminApi } = await import('../api');
-        const result = await adminApi.getStats();
-        
-        if (result && result.success && result.data && typeof result.data.viewsCount === 'number') {
-          directViewsCount.value = result.data.viewsCount;
-          console.log('直接获取到的浏览量:', directViewsCount.value);
-          return result.data.viewsCount;
-        }
-      } catch (error) {
-        console.error('直接获取浏览量出错:', error);
-      }
-      return null;
-    };
-
-    // 浏览量计算属性 - 优先使用直接获取的值
+    // 浏览量计算属性 - 直接从store中获取
     const viewsCount = computed(() => {
-      // 如果有直接获取的值，优先使用
-      if (directViewsCount.value > 0) {
-        console.log('使用直接获取的浏览量值:', directViewsCount.value);
-        return directViewsCount.value;
-      }
-      
-      // 其次尝试从store中获取
-      console.log('尝试从store获取浏览量:', store.state.activityStats?.viewsCount);
+      // 从store中获取浏览量
+      console.log('从store获取浏览量:', store.state.activityStats?.viewsCount);
       const storeViews = store.state.activityStats?.viewsCount;
       if (storeViews !== undefined && storeViews !== null) {
         // 确保是数字
@@ -110,7 +82,7 @@ export default {
         }
       }
       
-      // 如果都获取不到，返回0
+      // 如果获取不到，返回0
       console.warn('浏览量数据不可用，使用默认值0');
       return 0;
     })
@@ -127,34 +99,17 @@ export default {
     // 设置定时刷新
     const refreshInterval = ref(null)
     
-    // 刷新统计数据
+    // 刷新统计数据 - 只通过store更新
     const refreshStats = async () => {
       console.log('正在刷新统计数据...');
       
-      // 首先直接获取浏览量，确保最新数据显示
-      try {
-        const latestViewCount = await getLatestViewCount();
-        if (latestViewCount !== null) {
-          console.log('直接获取的浏览量已更新:', latestViewCount);
-        }
-      } catch (viewError) {
-        console.error('直接获取浏览量失败:', viewError);
-      }
-      
-      // 然后通过store更新完整统计数据
+      // 通过store更新完整统计数据
       store.dispatch('loadActivityStats')
         .then(() => {
           console.log('统计数据刷新成功:', store.state.activityStats);
-          // 显示当前浏览量
-          console.log('当前浏览量:', store.state.activityStats.viewsCount);
         })
         .catch(err => {
           console.error('获取统计数据失败:', err);
-          // 尝试重新加载一次
-          setTimeout(() => {
-            console.log('尝试重新加载统计数据...');
-            store.dispatch('loadActivityStats');
-          }, 3000);
         });
     }
     
@@ -278,30 +233,16 @@ export default {
       // 首先检查store中是否已有数据
       console.log('当前store中的活动统计数据:', store.state.activityStats);
       
-      // 强制直接从API获取最新数据
-      try {
-        console.log('ActivityStats组件强制从API获取最新数据...');
-        const { adminApi } = await import('../api');
-        const result = await adminApi.getStats();
-        
-        if (result && result.success && result.data) {
-          console.log('ActivityStats组件成功获取数据:', result.data);
-          // 直接更新store
-          store.commit('setActivityStats', result.data);
-        } else {
-          console.error('ActivityStats组件获取数据失败:', result);
-        }
-      } catch (error) {
-        console.error('ActivityStats组件直接获取数据出错:', error);
+      // 只有当store中没有数据时才请求刷新
+      if (!store.state.activityStats) {
+        console.log('store中没有统计数据，请求刷新');
+        refreshStats();
+      } else {
+        console.log('store中已有统计数据，跳过初始加载');
       }
       
-      // 确保数据已加载 - 通过HomeView中的loadData来加载
-      // 立即加载一次统计数据
-      console.log('请求刷新统计数据');
-      refreshStats();
-      
-      // 设置定时刷新 - 每15秒刷新一次 (缩短刷新间隔)
-      refreshInterval.value = setInterval(refreshStats, 15000);
+      // 设置定时刷新 - 每30秒刷新一次 (增加间隔减少请求次数)
+      refreshInterval.value = setInterval(refreshStats, 30000);
       
       // 确保参与者数据加载
       if (participants.value.length === 0) {

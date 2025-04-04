@@ -22,8 +22,8 @@
 
 # 后端项目忽略规则 (server)
 /server/node_modules/
-/server/.env
-/server/.env.*
+/server/.env.local
+/server/.env.*.local
 /server/logs/
 /server/data/*.json
 /server/certs/*.pem

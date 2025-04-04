@@ -279,44 +279,15 @@ export default {
     onMounted(async () => {
       console.log('HomeView组件已挂载');
       
-      // 强制加载活动统计数据
-      console.log('立即强制加载活动统计数据...');
-      try {
-        // 直接从API获取数据
-        const adminApi = await import('../api').then(module => module.adminApi);
-        const statsResult = await adminApi.getStats();
-        console.log('直接从API获取统计数据:', statsResult);
-        
-        if (statsResult && statsResult.success && statsResult.data) {
-          // 手动更新store
-          store.commit('setActivityStats', statsResult.data);
-          console.log('手动更新store中的统计数据成功:', store.state.activityStats);
-        }
-        
-        // 然后再通过store action加载一次
-        await store.dispatch('loadActivityStats');
-        console.log('通过store action加载统计数据完成:', store.state.activityStats);
-      } catch (error) {
-        console.error('初始化加载统计数据失败，将重试:', error);
-        // 出错时延迟2秒后再试一次
-        setTimeout(async () => {
-          try {
-            await store.dispatch('loadActivityStats');
-            console.log('重试加载统计数据成功:', store.state.activityStats);
-          } catch (retryError) {
-            console.error('重试加载统计数据仍然失败:', retryError);
-          }
-        }, 2000);
-      }
-      
-      // 加载其他数据
+      // 统一通过loadData函数加载所有数据，避免重复API调用
+      console.log('开始加载活动数据...');
       await loadData();
       
-      // 启动定时刷新 - 缩短刷新间隔
+      // 启动定时刷新 - 适当延长刷新间隔
       refreshInterval.value = setInterval(async () => {
         console.log('定时刷新数据...');
         await loadData();
-      }, 15000); // 改为15秒刷新一次
+      }, 30000); // 30秒刷新一次
     })
 
     // 组件卸载时清理资源

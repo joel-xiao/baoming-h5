@@ -147,110 +147,170 @@ exports.recordView = async (req, res) => {
   }
 };
 
+// 添加内存缓存
+const statsCache = {
+  data: null,
+  timestamp: 0,
+  expiryTime: 300000 // 缓存有效期增加到5分钟
+};
+
 // 获取报名统计
 exports.getRegistrationStats = async (req, res) => {
   try {
     console.log('开始获取报名统计数据...');
     
-    // 查询所有支付成功的报名记录
-    let allRegistrations;
-    try {
-      allRegistrations = await Registration.find({ paymentStatus: 'success' });
-      console.log('获取报名记录成功，记录数:', Array.isArray(allRegistrations) ? allRegistrations.length : '未知');
-    } catch (findError) {
-      console.error('查询支付成功记录出错:', findError);
-      throw findError;
-    }
+    // 1. 检查客户端是否支持缓存控制
+    const cacheControl = req.headers['cache-control'];
+    const forceRefresh = cacheControl && cacheControl.includes('no-cache');
     
-    // 确保allRegistrations是数组
-    if (!Array.isArray(allRegistrations)) {
-      console.log('转换查询结果为数组');
-      allRegistrations = allRegistrations ? (Array.isArray(allRegistrations) ? allRegistrations : [allRegistrations]) : [];
-    }
-    
-    // 获取浏览量数据
-    let viewsCount = 0;
-    try {
-      const stats = await Statistic.findOne({});
-      if (stats && typeof stats.viewCount === 'number') {
-        viewsCount = stats.viewCount;
-      }
-      console.log('获取浏览量成功:', viewsCount);
-    } catch (statsError) {
-      console.error('获取浏览量失败:', statsError);
-      // 继续使用默认值0
-    }
-    
-    // 数据处理 - 所有统计计算都使用安全模式
-    try {
-      // 总报名人数
-      const totalCount = allRegistrations.length;
-      
-      // 队长数量 - 安全过滤
-      const teamLeaderCount = allRegistrations.filter(r => {
-        try {
-          return r && r.isTeamLeader === true;
-        } catch (e) {
-          console.error('队长过滤错误:', e);
-          return false;
-        }
-      }).length;
-      
-      // 队员数量
-      const teamMemberCount = totalCount - teamLeaderCount;
-      
-      // 总金额 - 确保安全处理
-      const totalAmount = allRegistrations.reduce((sum, r) => {
-        try {
-          const amount = r && r.paymentAmount ? Number(r.paymentAmount) : 0;
-          return sum + (isNaN(amount) ? 0 : amount);
-        } catch (e) {
-          console.error('金额计算错误:', e);
-          return sum;
-        }
-      }, 0);
-      
-      // 今日报名 - 今天0点以后的报名
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayCount = allRegistrations.filter(r => {
-        try {
-          const createdDate = new Date(r.createdAt);
-          return !isNaN(createdDate.getTime()) && createdDate >= today;
-        } catch (e) {
-          console.error('日期计算错误:', e);
-          return false;
-        }
-      }).length;
-      
-      console.log('统计数据计算完成:', {
-        totalCount,
-        teamLeaderCount,
-        teamMemberCount,
-        totalAmount,
-        todayCount,
-        viewsCount
-      });
-      
-      // 返回统计数据
+    // 2. 检查缓存是否有效
+    const now = Date.now();
+    if (!forceRefresh && statsCache.data && (now - statsCache.timestamp < statsCache.expiryTime)) {
+      console.log('使用缓存的统计数据，缓存时间:', new Date(statsCache.timestamp).toISOString());
       return res.status(200).json({
         success: true,
-        data: {
-          totalCount,
-          teamLeaderCount,
-          teamMemberCount,
-          totalAmount,
-          todayCount,
-          viewsCount
-        }
+        data: statsCache.data,
+        fromCache: true
       });
-    } catch (statsError) {
-      console.error('计算统计数据出错:', statsError);
-      throw statsError;
     }
+    
+    console.log('缓存已过期或不存在，重新计算统计数据');
+    
+    // 3. 获取统计数据
+    const result = {
+      totalCount: 0,
+      teamLeaderCount: 0,
+      teamMemberCount: 0,
+      totalAmount: 0,
+      todayCount: 0,
+      viewsCount: 0
+    };
+    
+    try {
+      console.log('使用safeAggregate获取统计数据');
+      
+      // 设置超时Promise
+      const timeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('查询超时')), 5000)
+      );
+      
+      // 并行执行查询，带超时控制
+      const [stats, viewStats] = await Promise.all([
+        Promise.race([
+          // 使用新增的安全聚合方法
+          Registration.safeAggregate([
+            { $match: { paymentStatus: 'success' } },
+            { $group: {
+                _id: null,
+                totalCount: { $sum: 1 },
+                teamLeaderCount: { $sum: { $cond: [{ $eq: ["$isTeamLeader", true] }, 1, 0] } },
+                totalAmount: { $sum: { $ifNull: ["$paymentAmount", 0] } },
+                todayCount: {
+                  $sum: {
+                    $cond: [
+                      { $gte: ["$createdAt", new Date(new Date().setHours(0, 0, 0, 0)) ] },
+                      1, 
+                      0
+                    ]
+                  }
+                }
+              }
+            }
+          ]),
+          timeout
+        ]),
+        Statistic.findOne({})
+      ]);
+      
+      // 处理聚合结果
+      if (stats && stats.length > 0) {
+        const data = stats[0];
+        result.totalCount = data.totalCount || 0;
+        result.teamLeaderCount = data.teamLeaderCount || 0;
+        result.teamMemberCount = result.totalCount - result.teamLeaderCount;
+        result.totalAmount = data.totalAmount || 0;
+        result.todayCount = data.todayCount || 0;
+      }
+      
+      // 处理浏览量数据
+      if (viewStats && typeof viewStats.viewCount === 'number') {
+        result.viewsCount = viewStats.viewCount;
+      }
+      
+      console.log('统计数据获取完成:', result);
+    } catch (error) {
+      console.error('统计数据获取失败:', error);
+      
+      // 使用优化的方法查询
+      try {
+        console.log('使用优化的find方式查询');
+        
+        // 使用新添加的静态方法
+        const [registrations, viewStats] = await Promise.all([
+          Registration.findSuccessful(),
+          Statistic.findOne({})
+        ]);
+        
+        // 确保registrations是数组
+        const allRegistrations = Array.isArray(registrations) ? 
+          registrations : 
+          (registrations ? [registrations] : []);
+        
+        console.log('成功获取报名记录，数量:', allRegistrations.length);
+        
+        // 计算统计数据
+        result.totalCount = allRegistrations.length;
+        result.teamLeaderCount = allRegistrations.filter(r => r && r.isTeamLeader === true).length;
+        result.teamMemberCount = result.totalCount - result.teamLeaderCount;
+        
+        // 计算总金额
+        result.totalAmount = allRegistrations.reduce((sum, r) => {
+          return sum + (r && r.paymentAmount ? Number(r.paymentAmount) : 0);
+        }, 0);
+        
+        // 计算今日报名
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        result.todayCount = allRegistrations.filter(r => {
+          const createdDate = new Date(r.createdAt);
+          return !isNaN(createdDate.getTime()) && createdDate >= today;
+        }).length;
+        
+        // 处理浏览量
+        if (viewStats && typeof viewStats.viewCount === 'number') {
+          result.viewsCount = viewStats.viewCount;
+        }
+      } catch (fallbackError) {
+        console.error('备选查询也失败:', fallbackError);
+        // 保持result使用默认值
+      }
+    }
+    
+    // 4. 更新缓存
+    statsCache.data = result;
+    statsCache.timestamp = now;
+    
+    // 5. 返回结果
+    return res.status(200).json({
+      success: true,
+      data: result
+    });
+    
   } catch (error) {
     console.error('获取报名统计失败:', error);
     console.error('错误堆栈:', error.stack);
+    
+    // 如果有缓存，在出错时也返回缓存数据
+    if (statsCache.data) {
+      console.log('错误处理中返回缓存数据');
+      return res.status(200).json({
+        success: true,
+        data: statsCache.data,
+        fromCache: true,
+        error: '获取最新数据时出错，显示缓存数据'
+      });
+    }
+    
     return res.status(500).json({ 
       success: false, 
       message: '获取报名统计失败', 
