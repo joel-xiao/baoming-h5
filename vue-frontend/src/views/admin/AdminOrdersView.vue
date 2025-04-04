@@ -142,8 +142,8 @@
 
 <script>
 import { ref, reactive, onMounted, watch } from 'vue'
-import { adminApi } from '../../api'
-import { usePagination, useApi } from '../../api/hooks/useApi'
+import { adminApi } from '@api'
+import { usePagination, useApi } from '@api/hooks/useApi'
 
 export default {
   name: 'AdminOrdersView',

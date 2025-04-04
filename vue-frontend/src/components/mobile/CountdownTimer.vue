@@ -29,7 +29,7 @@
 <script>
 import axios from 'axios';
 import { defineComponent, onMounted, onBeforeUnmount, ref, computed } from 'vue';
-import { useActivity } from '../store/hooks';
+import { useActivity } from '@/store/hooks';
 
 export default defineComponent({
   name: 'CountdownTimer',

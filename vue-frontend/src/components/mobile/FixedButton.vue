@@ -22,7 +22,7 @@
 <script>
 import { computed, ref, provide, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useActivity, useUser, useDanmu, useSystem } from '../store/hooks'
+import { useActivity, useUser, useDanmu, useSystem } from '@/store/hooks'
 
 export default {
   name: 'FixedButton',

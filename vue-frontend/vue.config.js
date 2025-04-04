@@ -1,9 +1,24 @@
 const { defineConfig } = require('@vue/cli-service')
+const path = require('path')
 
 module.exports = defineConfig({
   transpileDependencies: true,
   // 输出路径修改为public目录，与后端集成
   outputDir: '../public/vue',
+  // 配置路径别名
+  configureWebpack: {
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, 'src'),
+        '@components': path.resolve(__dirname, 'src/components'),
+        '@views': path.resolve(__dirname, 'src/views'),
+        '@store': path.resolve(__dirname, 'src/store'),
+        '@api': path.resolve(__dirname, 'src/api'),
+        '@mobile': path.resolve(__dirname, 'src/components/mobile'),
+        '@admin': path.resolve(__dirname, 'src/components/admin')
+      }
+    }
+  },
   // 开发环境设置代理，处理API请求
   devServer: {
     host: '0.0.0.0', // 允许外部IP访问

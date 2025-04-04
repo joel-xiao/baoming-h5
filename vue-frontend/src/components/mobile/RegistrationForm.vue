@@ -50,7 +50,7 @@
 <script>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useActivity, useUser, useRegistration, useDanmu } from '../store/hooks'
+import { useActivity, useUser, useRegistration, useDanmu } from '@/store/hooks'
 
 export default {
   name: 'RegistrationForm',

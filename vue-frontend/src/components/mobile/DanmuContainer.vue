@@ -6,7 +6,7 @@
 
 <script>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { useActivity, useDanmu } from '../store/hooks'
+import { useActivity, useDanmu } from '@/store/hooks'
 
 export default {
   name: 'DanmuContainer',

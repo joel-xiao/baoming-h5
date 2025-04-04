@@ -53,19 +53,19 @@
 
 <script>
 import { ref, onMounted, onBeforeUnmount, onUnmounted } from 'vue'
-import { useActivity, useUser, useRegistration, useSystem, useDanmu } from '../../store/hooks'
-import Header from '../../components/mobile/Header.vue'
-import CountdownTimer from '../../components/mobile/CountdownTimer.vue'
-import ActivityStats from '../../components/mobile/ActivityStats.vue'
-import CourseInfo from '../../components/mobile/CourseInfo.vue'
-import OrdersList from '../../components/mobile/OrdersList.vue'
-import CustomerService from '../../components/mobile/CustomerService.vue'
-import RegistrationForm from '../../components/mobile/RegistrationForm.vue'
-import FixedButton from '../../components/mobile/FixedButton.vue'
-import DanmuContainer from '../../components/mobile/DanmuContainer.vue'
-import DanmuToggle from '../../components/mobile/DanmuToggle.vue'
-import DanmuDebug from '../../components/mobile/DanmuDebug.vue'
-import ScrollSync from '../../components/mobile/ScrollSync.vue'
+import { useActivity, useUser, useRegistration, useSystem, useDanmu } from '@store/hooks'
+import Header from '@mobile/Header.vue'
+import CountdownTimer from '@mobile/CountdownTimer.vue'
+import ActivityStats from '@mobile/ActivityStats.vue'
+import CourseInfo from '@mobile/CourseInfo.vue'
+import OrdersList from '@mobile/OrdersList.vue'
+import CustomerService from '@mobile/CustomerService.vue'
+import RegistrationForm from '@mobile/RegistrationForm.vue'
+import FixedButton from '@mobile/FixedButton.vue'
+import DanmuContainer from '@mobile/DanmuContainer.vue'
+import DanmuToggle from '@mobile/DanmuToggle.vue'
+import DanmuDebug from '@mobile/DanmuDebug.vue'
+import ScrollSync from '@mobile/ScrollSync.vue'
 
 export default {
   name: 'HomeView',

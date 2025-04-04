@@ -29,7 +29,7 @@
 
 <script>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { useActivity, useRegistration } from '../store/hooks'
+import { useActivity, useRegistration } from '@/store/hooks'
 
 export default {
   name: 'ActivityStats',

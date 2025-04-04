@@ -59,8 +59,8 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
-import { paymentApi } from '../../api'
-import { useApi } from '../../api/hooks/useApi'
+import { paymentApi } from '@api'
+import { useApi } from '@api/hooks/useApi'
 
 export default {
   name: 'SuccessView',

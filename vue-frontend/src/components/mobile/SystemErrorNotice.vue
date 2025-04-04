@@ -19,7 +19,7 @@
 </template>
 
 <script>
-import { useSystem } from '../store/hooks'
+import { useSystem } from '@/store/hooks'
 
 export default {
   name: 'SystemErrorNotice',

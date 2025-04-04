@@ -26,7 +26,7 @@
 <script>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
-import { useDanmu } from '../store/hooks'
+import { useDanmu } from '@/store/hooks'
 
 export default {
   name: 'DanmuToggle',

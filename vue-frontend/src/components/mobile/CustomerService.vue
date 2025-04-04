@@ -49,7 +49,7 @@
 
 <script>
 import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
-import { useActivity } from '../store/hooks'
+import { useActivity } from '@/store/hooks'
 
 export default {
   name: 'CustomerService',

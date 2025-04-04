@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/mobile/HomeView.vue'
+import HomeView from '@views/mobile/HomeView.vue'
 
 const routes = [
   // 普通用户路由
@@ -11,7 +11,7 @@ const routes = [
   {
     path: '/success',
     name: 'success',
-    component: () => import(/* webpackChunkName: "success" */ '../views/mobile/SuccessView.vue')
+    component: () => import(/* webpackChunkName: "success" */ '@views/mobile/SuccessView.vue')
   },
   
   // 管理员路由 - 以/admin开头的路径
@@ -23,12 +23,12 @@ const routes = [
   {
     path: '/admin/login',
     name: 'adminLogin',
-    component: () => import(/* webpackChunkName: "admin" */ '../views/admin/AdminLoginView.vue')
+    component: () => import(/* webpackChunkName: "admin" */ '@views/admin/AdminLoginView.vue')
   },
   {
     path: '/admin/orders',
     name: 'adminOrders',
-    component: () => import(/* webpackChunkName: "admin" */ '../views/admin/AdminOrdersView.vue'),
+    component: () => import(/* webpackChunkName: "admin" */ '@views/admin/AdminOrdersView.vue'),
     meta: { requiresAdmin: true }
   },
   
