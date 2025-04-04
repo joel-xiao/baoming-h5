@@ -118,6 +118,7 @@ export default {
         
         // 创建支付订单
         const response = await paymentApi.createPayment({
+          registrationId: props.registrationId,
           openid: userInfo.value.openid || 'mock_openid_123456',
           name: userInfo.value.name,
           phone: userInfo.value.phone,

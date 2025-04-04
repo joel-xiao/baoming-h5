@@ -1,0 +1,5 @@
+[33mcommit 51792fa9cc653012bac72824d7155dd75855c6ae[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mcode-architecture[m[33m)[m
+Author: User <user@example.com>
+Date:   Sat Apr 5 02:12:55 2025 +0800
+
+    修复: 移除团队名称唯一性验证, 添加orderNo字段唯一索引, 移除idCard唯一性约束

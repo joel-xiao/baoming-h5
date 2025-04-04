@@ -61,13 +61,6 @@ router.post('/leader', registrationController.createTeamLeader);
 router.post('/join', registrationController.joinTeam);
 
 /**
- * @route   PUT /api/registration/:id/review
- * @desc    审核报名
- * @access  Private (Admin)
- */
-router.put('/:id/review', authMiddleware, registrationController.reviewRegistration);
-
-/**
  * @route   PUT /api/registration/:id/payment-status
  * @desc    更新支付状态
  * @access  Private

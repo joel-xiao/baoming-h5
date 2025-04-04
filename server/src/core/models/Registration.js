@@ -5,9 +5,8 @@ const { SchemaBuilder } = require('../utils/SchemaBuilder');
  * 状态常量定义 - 用于替代直接使用中文
  */
 const REGISTRATION_STATUS = {
-  PENDING: 'pending',    // 待审核
-  APPROVED: 'approved',  // 已通过
-  REJECTED: 'rejected'   // 已拒绝
+  ACTIVE: 'active',     // 有效状态
+  INACTIVE: 'inactive'  // 无效状态
 };
 
 const GENDER = {
@@ -15,9 +14,16 @@ const GENDER = {
   FEMALE: 'female'       // 女
 };
 
+const PAYMENT_STATUS = {
+  UNPAID: 'unpaid',         // 未支付
+  PARTIALLY_PAID: 'partially_paid', // 部分支付
+  PAID: 'paid'              // 已支付
+};
+
 // 导出状态常量以便其他文件使用
 module.exports.REGISTRATION_STATUS = REGISTRATION_STATUS;
 module.exports.GENDER = GENDER;
+module.exports.PAYMENT_STATUS = PAYMENT_STATUS;
 
 /**
  * 简化后的报名表字段定义
@@ -83,11 +89,11 @@ const registrationFields = {
     unique: true
   },
   
-  // 审核状态
+  // 状态
   status: {
     type: 'string',
-    enum: [REGISTRATION_STATUS.PENDING, REGISTRATION_STATUS.APPROVED, REGISTRATION_STATUS.REJECTED],
-    default: REGISTRATION_STATUS.PENDING
+    enum: [REGISTRATION_STATUS.ACTIVE, REGISTRATION_STATUS.INACTIVE],
+    default: REGISTRATION_STATUS.ACTIVE
   }
 };
 
@@ -114,17 +120,11 @@ const hooks = {
  * 静态方法
  */
 const statics = {
-  // 通过审核
-  approveRegistration: async function(id) {
-    return this.findByIdAndUpdate ? 
-      this.findByIdAndUpdate(id, { status: REGISTRATION_STATUS.APPROVED }, { new: true }) :
-      this.update({ id }, { status: REGISTRATION_STATUS.APPROVED });
-  },
-  
-  // 拒绝审核
-  rejectRegistration: async function(id, remarks) {
+  // 设置为无效状态
+  deactivateRegistration: async function(id, remarks) {
     const updateData = { 
-      status: REGISTRATION_STATUS.REJECTED
+      status: REGISTRATION_STATUS.INACTIVE,
+      remarks: remarks
     };
     
     return this.findByIdAndUpdate ? 

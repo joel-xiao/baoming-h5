@@ -54,7 +54,14 @@ export default {
     },
     orderInfo: {
       type: Object,
-      default: () => ({})
+      default: () => ({
+        orderNo: '',
+        orderId: '',
+        amount: 99,
+        userType: '',
+        teamCode: '',
+        registrationId: ''
+      })
     }
   },
   emits: ['update:isVisible', 'paymentSuccess', 'paymentFailed', 'paymentClosed'],
@@ -118,6 +125,7 @@ export default {
         
         // 创建支付订单
         const response = await axios.post('/api/payment/create', {
+          registrationId: props.orderInfo.registrationId || '',
           openid: userInfo.value.openid,
           name: userInfo.value.name,
           phone: userInfo.value.phone,

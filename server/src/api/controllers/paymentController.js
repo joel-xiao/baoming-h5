@@ -5,6 +5,8 @@ const Registration = require('../../core/models/Registration');
 const logger = require('../../core/utils/Logger');
 const { PaymentService } = require('../../core/services/PaymentService');
 const appConfig = require('../../config/app');
+const { REGISTRATION_STATUS, PAYMENT_STATUS } = require('../../core/models/Registration');
+const { PAYMENT_METHOD, PAYMENT_STATUS: PAYMENT_ORDER_STATUS } = require('../../core/models/Payment');
 
 /**
  * 创建支付订单
@@ -15,41 +17,49 @@ const createPaymentOrder = async (req, res) => {
   try {
     const {
       registrationId,
-      paymentMethod,
+      paymentMethod = PAYMENT_METHOD.OTHER, // 设置支付方式为其他
       amount,
       payerName,
       payerPhone,
       payerEmail,
-      remarks
+      remarks,
     } = req.body;
     
-    // 获取Registration模型
-    const registrationModel = ModelFactory.getModel(Registration);
-    
-    // 查找注册记录
-    const registration = await registrationModel.findById(registrationId);
-    
-    if (!registration) {
-      return res.status(404).json({
+    // 验证必填字段
+    if (!registrationId) {
+      return res.status(400).json({
         success: false,
-        message: '注册记录不存在'
+        message: '报名表ID不能为空'
       });
     }
     
-    // 检查注册状态
-    if (registration.status !== '已审核') {
+    if (!amount) {
       return res.status(400).json({
         success: false,
-        message: '该注册记录未审核通过，无法支付'
+        message: '支付金额不能为空'
       });
     }
     
-    // 检查支付状态
-    if (registration.paymentStatus === '已支付') {
-      return res.status(400).json({
-        success: false,
-        message: '该注册记录已完成支付'
-      });
+    let registrationInfo = null;
+    
+    // 如果提供了registrationId，尝试查找注册记录
+    if (registrationId) {
+      // 获取Registration模型
+      const registrationModel = ModelFactory.getModel(Registration);
+      
+      // 查找注册记录
+      registrationInfo = await registrationModel.findById(registrationId);
+      
+      // 如果找到注册记录，检查支付状态
+      if (registrationInfo) {
+        // 检查支付状态
+        if (registrationInfo.paymentStatus === PAYMENT_STATUS.PAID) {
+          return res.status(400).json({
+            success: false,
+            message: '该注册记录已完成支付'
+          });
+        }
+      }
     }
     
     // 生成订单号
@@ -66,15 +76,15 @@ const createPaymentOrder = async (req, res) => {
     // 创建支付记录
     const payment = await paymentModel.create({
       orderNumber,
-      registrationId,
-      teamName: registration.teamName,
+      registrationId: registrationId || null,
+      teamName: registrationInfo ? registrationInfo.teamName : teamName || '未关联团队',
       paymentMethod,
       amount,
-      payerName: payerName || registration.leader.name,
-      payerPhone: payerPhone || registration.leader.phone,
-      payerEmail: payerEmail || registration.leader.email,
+      payerName,
+      payerPhone,
+      payerEmail,
       remarks,
-      status: '待支付',
+      status: PAYMENT_ORDER_STATUS.PENDING,
       createdAt: new Date()
     });
     
@@ -85,21 +95,28 @@ const createPaymentOrder = async (req, res) => {
     let paymentResult;
     
     try {
-      if (paymentMethod === '微信支付') {
+      if (paymentMethod === PAYMENT_METHOD.WECHAT) {
         paymentResult = await paymentService.createWechatPayment({
           orderNumber,
           amount,
-          description: `团队报名费: ${registration.teamName}`,
+          description: `报名费: ${payment.teamName}`,
           notifyUrl: `${appConfig.payment.wechatPay.notifyUrl}`,
           openid: req.body.openid // 可选，用于JSAPI支付
         });
-      } else if (paymentMethod === '支付宝') {
+      } else if (paymentMethod === PAYMENT_METHOD.ALIPAY) {
         paymentResult = await paymentService.createAlipayPayment({
           orderNumber,
           amount,
-          subject: `团队报名费: ${registration.teamName}`,
+          subject: `报名费: ${payment.teamName}`,
           notifyUrl: `${appConfig.payment.alipay.notifyUrl}`
         });
+      } else if (paymentMethod === PAYMENT_METHOD.TEST) {
+        // 测试支付方式，不调用实际支付接口
+        paymentResult = {
+          success: true,
+          paymentUrl: `/test-payment/${orderNumber}`,
+          message: '测试支付，无需实际付款'
+        };
       } else {
         // 线下支付或其他方式
         paymentResult = {
@@ -112,7 +129,7 @@ const createPaymentOrder = async (req, res) => {
       logger.error(`创建支付接口错误: ${paymentError.message}`);
       
       // 将支付记录状态更新为失败
-      payment.status = '支付失败';
+      payment.status = PAYMENT_ORDER_STATUS.FAILED;
       payment.errorMessage = paymentError.message;
       await payment.save();
       
@@ -134,7 +151,7 @@ const createPaymentOrder = async (req, res) => {
     
     await payment.save();
     
-    logger.info(`支付订单已创建: ${orderNumber}, 团队: ${registration.teamName}, 金额: ${amount}`);
+    logger.info(`支付订单已创建: ${orderNumber}, 团队: ${payment.teamName}, 金额: ${amount}`);
     
     res.status(201).json({
       success: true,
@@ -179,19 +196,19 @@ const getPaymentStatus = async (req, res) => {
     });
     
     if (!payment) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
         message: '支付记录不存在'
       });
     }
     
     // 如果状态是待支付且创建时间超过一天，更新为已关闭
-    if (payment.status === '待支付') {
+    if (payment.status === PAYMENT_ORDER_STATUS.PENDING) {
       const oneDayAgo = new Date();
       oneDayAgo.setDate(oneDayAgo.getDate() - 1);
       
       if (payment.createdAt < oneDayAgo) {
-        payment.status = '已关闭';
+        payment.status = PAYMENT_ORDER_STATUS.CLOSED;
         payment.closedAt = new Date();
         await payment.save();
       }
@@ -242,7 +259,7 @@ const wechatPayNotify = async (req, res) => {
     
     // 处理支付结果
     await handlePaymentSuccess(result.data.out_trade_no, {
-      paymentMethod: '微信支付',
+      paymentMethod: PAYMENT_METHOD.WECHAT,
       transactionId: result.data.transaction_id,
       paidAmount: parseInt(result.data.amount.total) / 100, // 转换为元
       paidTime: new Date()
@@ -282,7 +299,7 @@ const alipayNotify = async (req, res) => {
     
     // 处理支付结果
     await handlePaymentSuccess(result.data.out_trade_no, {
-      paymentMethod: '支付宝',
+      paymentMethod: PAYMENT_METHOD.ALIPAY,
       transactionId: result.data.trade_no,
       paidAmount: parseFloat(result.data.total_amount),
       paidTime: new Date(result.data.gmt_payment)
@@ -314,44 +331,47 @@ const handlePaymentSuccess = async (orderNumber, paymentInfo) => {
     }
     
     // 如果已经支付完成，则不重复处理
-    if (payment.status === '已支付') {
+    if (payment.status === PAYMENT_ORDER_STATUS.PAID) {
       logger.warn(`订单已支付，跳过处理: ${orderNumber}`);
       return;
     }
     
     // 更新支付记录
-    payment.status = '已支付';
+    payment.status = PAYMENT_ORDER_STATUS.PAID;
     payment.transactionId = paymentInfo.transactionId;
     payment.paidAmount = paymentInfo.paidAmount;
     payment.paidAt = paymentInfo.paidTime;
     
     await payment.save();
     
-    // 更新注册记录
-    const registrationModel = ModelFactory.getModel(Registration);
-    const registration = await registrationModel.findById(payment.registrationId);
-    
-    if (registration) {
-      // 计算已支付总额
-      const paidPayments = await paymentModel.find({
-        registrationId: registration._id,
-        status: '已支付'
-      });
+    // 如果有关联的注册记录，更新注册记录的支付状态
+    if (payment.registrationId) {
+      // 更新注册记录
+      const registrationModel = ModelFactory.getModel(Registration);
+      const registration = await registrationModel.findById(payment.registrationId);
       
-      const totalPaid = paidPayments.reduce((total, p) => total + p.paidAmount, 0);
-      
-      // 更新注册记录支付状态
-      registration.paidAmount = totalPaid;
-      
-      // 判断是否完全支付
-      if (totalPaid >= registration.totalAmount) {
-        registration.paymentStatus = '已支付';
-        registration.paidAt = new Date();
-      } else {
-        registration.paymentStatus = '部分支付';
+      if (registration) {
+        // 计算已支付总额
+        const paidPayments = await paymentModel.find({
+          registrationId: registration._id,
+          status: PAYMENT_ORDER_STATUS.PAID
+        });
+        
+        const totalPaid = paidPayments.reduce((total, p) => total + p.paidAmount, 0);
+        
+        // 更新注册记录支付状态
+        registration.paidAmount = totalPaid;
+        
+        // 判断是否完全支付
+        if (totalPaid >= registration.totalAmount) {
+          registration.paymentStatus = PAYMENT_STATUS.PAID;
+          registration.paidAt = new Date();
+        } else {
+          registration.paymentStatus = PAYMENT_STATUS.PARTIALLY_PAID;
+        }
+        
+        await registration.save();
       }
-      
-      await registration.save();
     }
     
     logger.info(`支付成功处理完成: ${orderNumber}, 交易号: ${paymentInfo.transactionId}, 金额: ${paymentInfo.paidAmount}`);
@@ -371,7 +391,16 @@ const updatePaymentStatus = async (req, res) => {
     const { id } = req.params;
     const { status, paidAmount, transactionId, remarks } = req.body;
     
-    if (!['待支付', '已支付', '已关闭', '已退款', '支付失败'].includes(status)) {
+    // 检查状态是否有效
+    const validStatuses = [
+      PAYMENT_ORDER_STATUS.PENDING,
+      PAYMENT_ORDER_STATUS.PAID,
+      PAYMENT_ORDER_STATUS.CLOSED,
+      PAYMENT_ORDER_STATUS.REFUNDED,
+      PAYMENT_ORDER_STATUS.FAILED
+    ];
+    
+    if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
         message: '状态无效'
@@ -385,7 +414,7 @@ const updatePaymentStatus = async (req, res) => {
     const payment = await paymentModel.findById(id);
     
     if (!payment) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
         message: '支付记录不存在'
       });
@@ -394,13 +423,13 @@ const updatePaymentStatus = async (req, res) => {
     // 更新支付记录
     payment.status = status;
     
-    if (status === '已支付') {
+    if (status === PAYMENT_ORDER_STATUS.PAID) {
       payment.paidAmount = paidAmount || payment.amount;
       payment.paidAt = new Date();
       payment.transactionId = transactionId;
-    } else if (status === '已关闭') {
+    } else if (status === PAYMENT_ORDER_STATUS.CLOSED) {
       payment.closedAt = new Date();
-    } else if (status === '已退款') {
+    } else if (status === PAYMENT_ORDER_STATUS.REFUNDED) {
       payment.refundedAt = new Date();
     }
     
@@ -414,7 +443,7 @@ const updatePaymentStatus = async (req, res) => {
     await payment.save();
     
     // 如果状态是已支付，更新注册记录
-    if (status === '已支付') {
+    if (status === PAYMENT_ORDER_STATUS.PAID) {
       await handlePaymentSuccess(payment.orderNumber, {
         paymentMethod: payment.paymentMethod,
         transactionId: transactionId || '手动更新',
@@ -461,7 +490,7 @@ const getPaymentsByRegistration = async (req, res) => {
     const registration = await registrationModel.findById(registrationId);
     
     if (!registration) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
         message: '注册记录不存在'
       });
@@ -567,14 +596,14 @@ const refundPayment = async (req, res) => {
     const payment = await paymentModel.findById(id);
     
     if (!payment) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
         message: '支付记录不存在'
       });
     }
     
     // 检查支付状态
-    if (payment.status !== '已支付') {
+    if (payment.status !== PAYMENT_ORDER_STATUS.PAID) {
       return res.status(400).json({
         success: false,
         message: '只能对已支付的订单进行退款'
@@ -595,7 +624,7 @@ const refundPayment = async (req, res) => {
     // 进行退款操作
     let refundResult;
     try {
-      if (payment.paymentMethod === '微信支付') {
+      if (payment.paymentMethod === PAYMENT_METHOD.WECHAT) {
         refundResult = await paymentService.refundWechatPayment({
           orderNumber: payment.orderNumber,
           transactionId: payment.transactionId,
@@ -603,7 +632,7 @@ const refundPayment = async (req, res) => {
           refundAmount: amount,
           reason: reason || '管理员操作退款'
         });
-      } else if (payment.paymentMethod === '支付宝') {
+      } else if (payment.paymentMethod === PAYMENT_METHOD.ALIPAY) {
         refundResult = await paymentService.refundAlipayPayment({
           orderNumber: payment.orderNumber,
           transactionId: payment.transactionId,
@@ -635,7 +664,7 @@ const refundPayment = async (req, res) => {
     }
     
     // 更新支付记录
-    payment.status = amount === payment.paidAmount ? '已退款' : '部分退款';
+    payment.status = amount === payment.paidAmount ? PAYMENT_ORDER_STATUS.REFUNDED : PAYMENT_ORDER_STATUS.PARTIALLY_REFUNDED;
     payment.refundId = refundResult.refundId;
     payment.refundAmount = amount;
     payment.refundReason = reason;
@@ -652,15 +681,15 @@ const refundPayment = async (req, res) => {
       // 重新计算已支付总额
       const paidPayments = await paymentModel.find({
         registrationId: registration._id,
-        status: { $in: ['已支付', '部分退款'] }
+        status: { $in: [PAYMENT_ORDER_STATUS.PAID, PAYMENT_ORDER_STATUS.PARTIALLY_REFUNDED] }
       });
       
       let totalPaid = 0;
       
       paidPayments.forEach(p => {
-        if (p.status === '已支付') {
+        if (p.status === PAYMENT_ORDER_STATUS.PAID) {
           totalPaid += p.paidAmount;
-        } else if (p.status === '部分退款') {
+        } else if (p.status === PAYMENT_ORDER_STATUS.PARTIALLY_REFUNDED) {
           totalPaid += (p.paidAmount - p.refundAmount);
         }
       });
@@ -712,7 +741,7 @@ const getPaymentStatistics = async (req, res) => {
     // 获取总支付金额
     const totalAmount = await paymentModel.aggregate([
       {
-        $match: { status: '已支付' }
+        $match: { status: 'paid' }
       },
       {
         $group: {
@@ -729,7 +758,7 @@ const getPaymentStatistics = async (req, res) => {
     const todayAmount = await paymentModel.aggregate([
       {
         $match: {
-          status: '已支付',
+          status: 'paid',
           paidAt: { $gte: today }
         }
       },
@@ -744,7 +773,7 @@ const getPaymentStatistics = async (req, res) => {
     // 获取各种支付方式的统计
     const paymentMethodStats = await paymentModel.aggregate([
       {
-        $match: { status: '已支付' }
+        $match: { status: 'paid' }
       },
       {
         $group: {
@@ -762,7 +791,7 @@ const getPaymentStatistics = async (req, res) => {
     const dailyStats = await paymentModel.aggregate([
       {
         $match: {
-          status: '已支付',
+          status: 'paid',
           paidAt: { $gte: last30Days }
         }
       },
@@ -799,11 +828,11 @@ const getPaymentStatistics = async (req, res) => {
       data: {
         total: {
           amount: totalAmount.length > 0 ? totalAmount[0].total : 0,
-          count: await paymentModel.countDocuments({ status: '已支付' })
+          count: await paymentModel.countDocuments({ status: 'paid' })
         },
         today: {
           amount: todayAmount.length > 0 ? todayAmount[0].total : 0,
-          count: await paymentModel.countDocuments({ status: '已支付', paidAt: { $gte: today } })
+          count: await paymentModel.countDocuments({ status: 'paid', paidAt: { $gte: today } })
         },
         paymentMethods: paymentMethodStats.reduce((acc, curr) => {
           acc[curr._id] = {
@@ -824,6 +853,38 @@ const getPaymentStatistics = async (req, res) => {
   }
 };
 
+/**
+ * 测试支付成功处理
+ * @route GET /api/payment/test-complete/:orderNumber
+ * @access 公开
+ */
+const completeTestPayment = async (req, res) => {
+  try {
+    const { orderNumber } = req.params;
+    
+    // 处理支付结果
+    await handlePaymentSuccess(orderNumber, {
+      paymentMethod: PAYMENT_METHOD.TEST,
+      transactionId: `TEST-${Date.now()}`,
+      paidAmount: 0, // 测试支付默认金额为0
+      paidTime: new Date()
+    });
+    
+    res.status(200).json({
+      success: true,
+      message: '测试支付成功完成',
+      orderNumber
+    });
+  } catch (error) {
+    logger.error(`测试支付处理错误: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: '测试支付处理失败',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createPaymentOrder,
   getPaymentStatus,
@@ -833,5 +894,6 @@ module.exports = {
   getPaymentsByRegistration,
   getAllPaymentOrders,
   refundPayment,
-  getPaymentStatistics
+  getPaymentStatistics,
+  completeTestPayment
 }; 

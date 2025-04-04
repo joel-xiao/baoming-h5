@@ -1,10 +1,12 @@
 const crypto = require('crypto');
 const ModelFactory = require('../../core/db/ModelFactory');
 const Registration = require('../../core/models/Registration');
+const { REGISTRATION_STATUS } = require('../../core/models/Registration');
 const logger = require('../../core/utils/Logger');
 const { sendEmail } = require('../../core/utils/EmailService');
 const appConfig = require('../../config/app');
 const IDGenerator = require('../../core/utils/IDGenerator');
+const { PAYMENT_STATUS } = require('../../core/models/Registration');
 
 /**
  * 获取近期注册记录
@@ -18,8 +20,8 @@ const getRecentRegistrations = async (req, res) => {
     // 获取Registration模型
     const registrationModel = ModelFactory.getModel(Registration);
     
-    // 查询已审核的记录
-    const registrations = await registrationModel.find({ status: '已审核' })
+    // 查询有效状态的记录
+    const registrations = await registrationModel.find({ status: REGISTRATION_STATUS.ACTIVE })
       .select('teamName leader.name leader.organization createdAt')
       .sort({ createdAt: -1 })
       .limit(parseInt(limit));
@@ -75,7 +77,7 @@ const createRegistration = async (req, res) => {
       members,
       additionalInfo,
       orderNo,
-      status: '待审核',
+      status: REGISTRATION_STATUS.ACTIVE,
       createdAt: new Date()
     });
     
@@ -85,10 +87,10 @@ const createRegistration = async (req, res) => {
         await sendEmail({
           to: leader.email,
           subject: '【团队报名系统】报名确认',
-          text: `尊敬的${leader.name}，您的团队"${teamName}"已成功报名，我们将尽快审核，请留意审核结果通知。`,
+          text: `尊敬的${leader.name}，您的团队"${teamName}"已成功报名。`,
           html: `
             <p>尊敬的${leader.name}，</p>
-            <p>您的团队"${teamName}"已成功报名，我们将尽快审核，请留意审核结果通知。</p>
+            <p>您的团队"${teamName}"已成功报名。</p>
             <p>团队信息:</p>
             <ul>
               <li>团队名称: ${teamName}</li>
@@ -174,11 +176,8 @@ const updateRegistration = async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
     
-    // 不允许更新状态、审核时间等敏感字段
+    // 不允许更新敏感字段
     delete updateData.status;
-    delete updateData.reviewedAt;
-    delete updateData.reviewer;
-    delete updateData.rejectReason;
     delete updateData.paymentStatus;
     delete updateData.paidAmount;
     delete updateData.paidAt;
@@ -190,33 +189,24 @@ const updateRegistration = async (req, res) => {
     const registration = await registrationModel.findById(id);
     
     if (!registration) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
         message: '注册记录不存在'
       });
     }
     
-    // 检查状态，只有待审核状态才能更新
-    if (registration.status !== '待审核') {
-      return res.status(400).json({
-        success: false,
-        message: '只有待审核状态的注册记录才能更新'
-      });
-    }
-    
     // 更新记录
-    const updatedRegistration = await registrationModel.findByIdAndUpdate(
-      id,
-      { ...updateData, updatedAt: new Date() },
-      { new: true, runValidators: true }
-    );
+    Object.assign(registration, updateData);
+    registration.updatedAt = new Date();
+    
+    await registration.save();
     
     logger.info(`注册记录已更新: ${id}`);
     
     res.status(200).json({
       success: true,
       message: '更新注册记录成功',
-      data: updatedRegistration
+      data: registration
     });
   } catch (error) {
     logger.error(`更新注册记录错误: ${error.message}`);
@@ -549,108 +539,6 @@ const joinTeam = async (req, res) => {
 };
 
 /**
- * 审核注册
- * @route PUT /api/registration/:id/review
- * @access 私有 管理员
- */
-const reviewRegistration = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status, remarks, reason } = req.body;
-    
-    if (!['已审核', '已拒绝'].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: '状态无效'
-      });
-    }
-    
-    if (status === '已拒绝' && !reason) {
-      return res.status(400).json({
-        success: false,
-        message: '拒绝原因不能为空'
-      });
-    }
-    
-    // 获取Registration模型
-    const registrationModel = ModelFactory.getModel(Registration);
-    
-    // 查找记录
-    const registration = await registrationModel.findById(id);
-    
-    if (!registration) {
-      return res.status(404).json({
-        success: false,
-        message: '注册记录不存在'
-      });
-    }
-    
-    // 更新状态
-    registration.status = status;
-    registration.reviewedAt = new Date();
-    registration.reviewer = req.user._id;
-    
-    if (remarks) registration.remarks = remarks;
-    if (reason) registration.rejectReason = reason;
-    
-    await registration.save();
-    
-    // 如果提供了邮箱，发送审核结果邮件
-    if (registration.leader.email) {
-      try {
-        if (status === '已审核') {
-          await sendEmail({
-            to: registration.leader.email,
-            subject: '【团队报名系统】报名审核通过',
-            text: `尊敬的${registration.leader.name}，您的团队"${registration.teamName}"报名已审核通过。${remarks ? '备注: ' + remarks : ''}`,
-            html: `
-              <p>尊敬的${registration.leader.name}，</p>
-              <p>恭喜！您的团队"${registration.teamName}"报名已审核通过。</p>
-              ${remarks ? `<p>审核备注: ${remarks}</p>` : ''}
-              <p>谢谢!</p>
-              <p>团队报名系统</p>
-            `
-          });
-        } else {
-          await sendEmail({
-            to: registration.leader.email,
-            subject: '【团队报名系统】报名审核未通过',
-            text: `尊敬的${registration.leader.name}，很遗憾，您的团队"${registration.teamName}"报名未通过审核。原因: ${reason}`,
-            html: `
-              <p>尊敬的${registration.leader.name}，</p>
-              <p>很遗憾，您的团队"${registration.teamName}"报名未通过审核。</p>
-              <p>未通过原因: ${reason}</p>
-              <p>如有疑问，请联系管理员。</p>
-              <p>谢谢!</p>
-              <p>团队报名系统</p>
-            `
-          });
-        }
-        
-        logger.info(`审核结果邮件已发送: ${registration.leader.email}, 状态: ${status}`);
-      } catch (emailError) {
-        logger.error(`发送审核结果邮件错误: ${emailError.message}`);
-        // 不影响审核流程，继续处理
-      }
-    }
-    
-    logger.info(`注册记录已审核: ${id}, 状态: ${status}, 审核人: ${req.user.username}`);
-    
-    res.status(200).json({
-      success: true,
-      message: `审核${status === '已审核' ? '通过' : '拒绝'}成功`,
-      data: registration
-    });
-  } catch (error) {
-    logger.error(`审核注册记录错误: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: '审核注册记录时发生错误'
-    });
-  }
-};
-
-/**
  * 更新支付状态
  * @route PUT /api/registration/:id/payment-status
  * @access 私有
@@ -660,7 +548,7 @@ const updatePaymentStatus = async (req, res) => {
     const { id } = req.params;
     const { paymentStatus, paidAmount } = req.body;
     
-    if (!['未支付', '部分支付', '已支付'].includes(paymentStatus)) {
+    if (![PAYMENT_STATUS.UNPAID, PAYMENT_STATUS.PARTIALLY_PAID, PAYMENT_STATUS.PAID].includes(paymentStatus)) {
       return res.status(400).json({
         success: false,
         message: '支付状态无效'
@@ -687,7 +575,7 @@ const updatePaymentStatus = async (req, res) => {
       registration.paidAmount = paidAmount;
     }
     
-    if (paymentStatus === '已支付') {
+    if (paymentStatus === PAYMENT_STATUS.PAID) {
       registration.paidAt = new Date();
     }
     
@@ -723,6 +611,5 @@ module.exports = {
   getTeamMembers,
   createTeamLeader,
   joinTeam,
-  reviewRegistration,
   updatePaymentStatus
 }; 

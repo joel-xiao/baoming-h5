@@ -129,6 +129,7 @@ const actions = {
       
       // 创建支付订单
       const paymentResult = await paymentApi.createPayment({
+        registrationId: registerResult.data.id,
         openid: userData.openid,
         name: userData.name,
         phone: userData.phone,

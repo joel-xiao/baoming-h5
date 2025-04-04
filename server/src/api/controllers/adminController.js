@@ -68,107 +68,6 @@ const getAllRegistrations = async (req, res) => {
 };
 
 /**
- * 审核通过注册记录
- * @route PUT /api/admin/registration/:id/approve
- * @access 私有 管理员
- */
-const approveRegistration = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { remarks } = req.body;
-    
-    // 获取Registration模型
-    const registrationModel = ModelFactory.getModel(Registration);
-    
-    // 查找记录
-    const registration = await registrationModel.findById(id);
-    
-    if (!registration) {
-      return res.status(404).json({
-        success: false,
-        message: '注册记录不存在'
-      });
-    }
-    
-    // 更新状态
-    registration.status = '已审核';
-    registration.reviewedAt = new Date();
-    registration.reviewer = req.user._id;
-    if (remarks) registration.remarks = remarks;
-    
-    await registration.save();
-    
-    logger.info(`注册记录已审核通过: ${id}, 审核人: ${req.user.username}`);
-    
-    res.status(200).json({
-      success: true,
-      message: '审核通过成功',
-      data: registration
-    });
-  } catch (error) {
-    logger.error(`审核注册记录错误: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: '审核注册记录时发生错误'
-    });
-  }
-};
-
-/**
- * 拒绝注册记录
- * @route PUT /api/admin/registration/:id/reject
- * @access 私有 管理员
- */
-const rejectRegistration = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { reason } = req.body;
-    
-    if (!reason) {
-      return res.status(400).json({
-        success: false,
-        message: '拒绝原因不能为空'
-      });
-    }
-    
-    // 获取Registration模型
-    const registrationModel = ModelFactory.getModel(Registration);
-    
-    // 查找记录
-    const registration = await registrationModel.findById(id);
-    
-    if (!registration) {
-      return res.status(404).json({
-        success: false,
-        message: '注册记录不存在'
-      });
-    }
-    
-    // 更新状态
-    registration.status = '已拒绝';
-    registration.reviewedAt = new Date();
-    registration.reviewer = req.user._id;
-    registration.rejectReason = reason;
-    
-    await registration.save();
-    
-    logger.info(`注册记录已拒绝: ${id}, 审核人: ${req.user.username}, 原因: ${reason}`);
-    
-    res.status(200).json({
-      success: true,
-      message: '拒绝注册成功',
-      data: registration
-    });
-  } catch (error) {
-    logger.error(`拒绝注册记录错误: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: '拒绝注册记录时发生错误'
-    });
-  }
-};
-
-/**
  * 获取统计数据
  * @route GET /api/admin/stats
  * @access 私有 管理员
@@ -566,8 +465,6 @@ const deleteUser = async (req, res) => {
 
 module.exports = {
   getAllRegistrations,
-  approveRegistration,
-  rejectRegistration,
   getStats,
   exportRegistrations,
   exportPayments,

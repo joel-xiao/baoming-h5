@@ -15,20 +15,6 @@ router.use(authMiddleware, adminMiddleware);
 router.get('/registrations', adminController.getAllRegistrations);
 
 /**
- * @route   PUT /api/admin/registration/:id/approve
- * @desc    审核通过报名记录
- * @access  Private (Admin)
- */
-router.put('/registration/:id/approve', adminController.approveRegistration);
-
-/**
- * @route   PUT /api/admin/registration/:id/reject
- * @desc    拒绝报名记录
- * @access  Private (Admin)
- */
-router.put('/registration/:id/reject', adminController.rejectRegistration);
-
-/**
  * @route   GET /api/admin/stats
  * @desc    获取统计数据
  * @access  Private (Admin)

@@ -7,15 +7,21 @@ const PAYMENT_METHOD = {
   WECHAT: 'wechat',           // 微信支付
   ALIPAY: 'alipay',           // 支付宝
   BANK_TRANSFER: 'bank',      // 银行转账
-  ONSITE: 'onsite'            // 现场支付
+  ONSITE: 'onsite',           // 现场支付
+  TEST: 'test',               // 测试支付
+  OTHER: 'other'              // 其他方式
 };
 
 const PAYMENT_STATUS = {
   PENDING: 'pending',         // 待支付
   PROCESSING: 'processing',   // 处理中
-  COMPLETED: 'completed',     // 已完成
+  COMPLETED: 'completed',     // 已完成(已支付)
+  PAID: 'paid',               // 已支付(同completed)
   REFUNDED: 'refunded',       // 已退款
-  CANCELED: 'canceled'        // 已取消
+  PARTIALLY_REFUNDED: 'partially_refunded', // 部分退款
+  CANCELED: 'canceled',       // 已取消
+  CLOSED: 'closed',           // 已关闭
+  FAILED: 'failed'            // 支付失败
 };
 
 // 导出状态常量以便其他文件使用
@@ -45,14 +51,14 @@ const paymentFields = {
   // 支付方式
   paymentMethod: {
     type: 'string',
-    enum: [PAYMENT_METHOD.WECHAT, PAYMENT_METHOD.ALIPAY, PAYMENT_METHOD.BANK_TRANSFER, PAYMENT_METHOD.ONSITE],
-    required: true
+    enum: [PAYMENT_METHOD.WECHAT, PAYMENT_METHOD.ALIPAY, PAYMENT_METHOD.BANK_TRANSFER, PAYMENT_METHOD.ONSITE, PAYMENT_METHOD.TEST, PAYMENT_METHOD.OTHER],
+    required: false
   },
   
   // 支付状态
   status: {
     type: 'string',
-    enum: [PAYMENT_STATUS.PENDING, PAYMENT_STATUS.PROCESSING, PAYMENT_STATUS.COMPLETED, PAYMENT_STATUS.REFUNDED, PAYMENT_STATUS.CANCELED],
+    enum: [PAYMENT_STATUS.PENDING, PAYMENT_STATUS.PROCESSING, PAYMENT_STATUS.COMPLETED, PAYMENT_STATUS.REFUNDED, PAYMENT_STATUS.CANCELED, PAYMENT_STATUS.PAID, PAYMENT_STATUS.PARTIALLY_REFUNDED, PAYMENT_STATUS.CLOSED, PAYMENT_STATUS.FAILED],
     default: PAYMENT_STATUS.PENDING
   },
   
@@ -179,7 +185,11 @@ const methods = {
       [PAYMENT_STATUS.PROCESSING]: '正在处理中',
       [PAYMENT_STATUS.COMPLETED]: '支付已完成',
       [PAYMENT_STATUS.REFUNDED]: '已退款',
-      [PAYMENT_STATUS.CANCELED]: '支付已取消'
+      [PAYMENT_STATUS.CANCELED]: '支付已取消',
+      [PAYMENT_STATUS.PAID]: '已支付',
+      [PAYMENT_STATUS.PARTIALLY_REFUNDED]: '部分退款',
+      [PAYMENT_STATUS.CLOSED]: '已关闭',
+      [PAYMENT_STATUS.FAILED]: '支付失败'
     };
     
     return statusMap[status] || status;
@@ -193,7 +203,9 @@ const methods = {
       [PAYMENT_METHOD.WECHAT]: '微信支付',
       [PAYMENT_METHOD.ALIPAY]: '支付宝',
       [PAYMENT_METHOD.BANK_TRANSFER]: '银行转账',
-      [PAYMENT_METHOD.ONSITE]: '现场支付'
+      [PAYMENT_METHOD.ONSITE]: '现场支付',
+      [PAYMENT_METHOD.TEST]: '测试支付',
+      [PAYMENT_METHOD.OTHER]: '其他方式'
     };
     
     return methodMap[method] || method;
