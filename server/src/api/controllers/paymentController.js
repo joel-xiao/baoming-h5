@@ -7,6 +7,7 @@ const { PaymentService } = require('../../core/services/PaymentService');
 const appConfig = require('../../config/app');
 const { REGISTRATION_STATUS, PAYMENT_STATUS } = require('../../core/models/Registration');
 const { PAYMENT_METHOD, PAYMENT_STATUS: PAYMENT_ORDER_STATUS } = require('../../core/models/Payment');
+const { generatePaymentOrderId } = require('../../core/utils/IDGenerator');
 
 /**
  * 创建支付订单
@@ -63,12 +64,7 @@ const createPaymentOrder = async (req, res) => {
     }
     
     // 生成订单号
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const random = crypto.randomBytes(4).toString('hex').toUpperCase();
-    const orderNumber = `ORD${year}${month}${day}${random}`;
+    const orderNumber = generatePaymentOrderId();
     
     // 获取Payment模型
     const paymentModel = ModelFactory.getModel(Payment);
@@ -85,6 +81,7 @@ const createPaymentOrder = async (req, res) => {
       payerEmail,
       remarks,
       status: PAYMENT_ORDER_STATUS.PENDING,
+      transactionId: `PENDING-${orderNumber}`,
       createdAt: new Date()
     });
     

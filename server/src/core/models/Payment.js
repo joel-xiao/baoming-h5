@@ -65,7 +65,9 @@ const paymentFields = {
   // 交易号
   transactionId: {
     type: 'string',
-    unique: true
+    sparse: true,
+    unique: true,
+    required: true
   },
   
   // 支付时间

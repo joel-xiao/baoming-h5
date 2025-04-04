@@ -24,14 +24,14 @@
         @click="selectUserType('team_member')"
       >
         <h3>我要加入团队</h3>
-        <p>输入团队ID加入</p>
+        <p>输入邀请码加入</p>
       </div>
     </div>
     
     <div class="team-code-container" v-show="userType === 'team_member'">
       <div class="form-group">
-        <label for="team-code">团队ID</label>
-        <input type="text" id="team-code" v-model="teamCode" placeholder="请输入团队ID">
+        <label for="team-code">邀请码</label>
+        <input type="text" id="team-code" v-model="teamCode" placeholder="请输入邀请码">
       </div>
     </div>
     
@@ -125,7 +125,7 @@ export default {
       }
       
       if (userType.value === 'team_member' && !teamCode.value.trim()) {
-        alert('请输入团队ID')
+        alert('请输入邀请码')
         return false
       }
       

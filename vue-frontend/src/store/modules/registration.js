@@ -28,8 +28,8 @@ const actions = {
       if (result.success && Array.isArray(result.data)) {
         // 将数据转换成参与者格式
         const participants = result.data.map(item => ({
-          name: item.name || '匿名',
-          avatar: item.name ? item.name.substr(0, 1) : '?'
+          name: (item.leader && item.leader.name) || item.name || '匿名',
+          avatar: (item.leader && item.leader.name) ? item.leader.name.substr(0, 1) : (item.name ? item.name.substr(0, 1) : '?')
         }))
         
         commit('activity/SET_PARTICIPANTS', participants, { root: true })
@@ -78,8 +78,9 @@ const actions = {
           }
           
           return {
-            name: order.name || '匿名',
-            phone: maskPhone(order.phone || ''),
+            // 正确获取嵌套在leader对象中的name字段，或使用备用方案
+            name: (order.leader && order.leader.name) || order.name || '匿名',
+            phone: maskPhone((order.leader && order.leader.phone) || order.phone || ''),
             amount: order.paymentAmount || rootState.activity.config.price,
             status: '已支付',
             time: formatDate(order.paymentTime || order.createdAt)
@@ -120,7 +121,7 @@ const actions = {
         ? await registrationApi.createTeamLeader(userData)
         : await registrationApi.joinTeam({
             ...userData,
-            teamId: rootState.user.teamCode
+            inviteCode: rootState.user.teamCode
           })
       
       if (!registerResult.success) {

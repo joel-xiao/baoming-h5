@@ -444,8 +444,16 @@ const joinTeam = async (req, res) => {
   try {
     const {
       inviteCode,
-      member
+      name,
+      phone,
+      openid,
     } = req.body;
+    
+    const member = {
+      name,
+      phone,
+      openid
+    };
     
     // 获取Registration模型
     const registrationModel = ModelFactory.getModel(Registration);
@@ -454,17 +462,9 @@ const joinTeam = async (req, res) => {
     const registration = await registrationModel.findOne({ inviteCode });
     
     if (!registration) {
-      return res.status(404).json({
-        success: false,
-        message: '邀请码无效或团队不存在'
-      });
-    }
-    
-    // 检查团队状态
-    if (registration.status !== '预注册' && registration.status !== '待审核') {
       return res.status(400).json({
         success: false,
-        message: '该团队已无法添加成员'
+        message: '邀请码无效或团队不存在'
       });
     }
     
@@ -482,11 +482,6 @@ const joinTeam = async (req, res) => {
     // 添加团队成员
     registration.members.push(member);
     registration.updatedAt = new Date();
-    
-    // 如果是第一个成员加入，将状态更新为待审核
-    if (registration.status === '预注册' && registration.members.length === 1) {
-      registration.status = '待审核';
-    }
     
     await registration.save();
     
@@ -524,7 +519,7 @@ const joinTeam = async (req, res) => {
       success: true,
       message: '成功加入团队',
       data: {
-        teamId: registration._id,
+        id: registration._id,
         teamName: registration.teamName,
         memberName: member.name
       }
