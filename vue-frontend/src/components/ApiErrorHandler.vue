@@ -186,14 +186,15 @@ export default {
   min-width: 320px;
   max-width: 450px;
   padding: 16px;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: flex-start;
   z-index: 9999;
   background-color: #fff;
-  border-left: 0;
   overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .api-error-toast::before {
@@ -206,7 +207,11 @@ export default {
 }
 
 .api-error-toast--error {
-  background-color: #fff8f8;
+  background-color: #fef5f5;
+}
+
+.api-error-toast--error .api-error-toast__title {
+  color: #b83a38;
 }
 
 .api-error-toast--error::before {
@@ -214,7 +219,11 @@ export default {
 }
 
 .api-error-toast--warning {
-  background-color: #fffbf4;
+  background-color: #fef9ef;
+}
+
+.api-error-toast--warning .api-error-toast__title {
+  color: #af7010;
 }
 
 .api-error-toast--warning::before {
@@ -225,12 +234,20 @@ export default {
   background-color: #f5f9ff;
 }
 
+.api-error-toast--auth .api-error-toast__title {
+  color: #3273dc;
+}
+
 .api-error-toast--auth::before {
   background-color: #3498db;
 }
 
 .api-error-toast--network {
   background-color: #f9f4fe;
+}
+
+.api-error-toast--network .api-error-toast__title {
+  color: #8e44ad;
 }
 
 .api-error-toast--network::before {
@@ -254,6 +271,7 @@ export default {
   height: 36px;
   border-radius: 50%;
   background-color: rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
 }
 
 .api-error-toast--error .api-error-toast__icon {
@@ -278,18 +296,19 @@ export default {
 
 .api-error-toast__content {
   flex: 1;
+  min-width: 0;
 }
 
 .api-error-toast__title {
   font-size: 16px;
-  font-weight: bold;
+  font-weight: 600;
   margin-bottom: 6px;
   color: #333;
 }
 
 .api-error-toast__message {
   font-size: 14px;
-  line-height: 1.4;
+  line-height: 1.5;
   color: #666;
   word-break: break-word;
 }
@@ -301,19 +320,26 @@ export default {
   color: #999;
   cursor: pointer;
   margin-left: 10px;
-  padding: 0 5px;
+  padding: 0 6px;
   transition: color 0.2s;
-  margin-top: -4px;
+  margin-top: -5px;
+  line-height: 1;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
 }
 
 .api-error-toast__close:hover {
   color: #333;
+  opacity: 1;
 }
 
 /* 动画效果 */
 .api-error-fade-enter-active,
 .api-error-fade-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .api-error-fade-enter-from {
@@ -333,6 +359,23 @@ export default {
     left: 10px;
     width: auto;
     max-width: none;
+    padding: 14px;
+  }
+  
+  .api-error-toast__icon {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+    margin-right: 12px;
+  }
+  
+  .api-error-toast__title {
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+  
+  .api-error-toast__message {
+    font-size: 13px;
   }
 }
 </style> 

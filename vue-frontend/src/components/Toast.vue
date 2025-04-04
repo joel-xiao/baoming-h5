@@ -1,7 +1,7 @@
 <template>
   <div class="toast-container" v-if="isVisible && !isApiErrorVisible">
     <transition name="toast-fade">
-      <div class="toast-message" :class="type">
+      <div class="toast-message" :class="[type, {'with-icon': showIcon}]">
         <div class="toast-message__icon" v-if="showIcon">
           <i class="fas" :class="iconClass"></i>
         </div>
@@ -108,81 +108,152 @@ export default {
 <style scoped>
 .toast-container {
   position: fixed;
-  bottom: 30px;
+  bottom: 40px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10000;
   pointer-events: none;
+  width: 90%;
+  max-width: 420px;
 }
 
 .toast-message {
   display: flex;
   align-items: center;
-  background-color: rgba(33, 33, 33, 0.85);
-  color: white;
-  padding: 12px 20px;
-  border-radius: 8px;
-  max-width: 400px;
-  min-width: 250px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(4px);
-  text-align: center;
+  background-color: #ffffff;
+  color: #333333;
+  padding: 16px 20px;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(10px);
+  text-align: left;
   font-size: 15px;
-  line-height: 1.4;
+  line-height: 1.5;
+  font-weight: 500;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.toast-message::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+}
+
+.toast-message.with-icon {
+  padding-left: 16px;
 }
 
 .toast-message__icon {
-  margin-right: 12px;
-  font-size: 18px;
+  margin-right: 14px;
+  font-size: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
 }
 
 .toast-message__content {
   flex: 1;
+  word-break: break-word;
 }
 
 .toast-message.success {
-  background-color: rgba(46, 204, 113, 0.9);
-  box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3);
+  background-color: #f2fcf6;
+  color: #1e8a5e;
+}
+
+.toast-message.success::before {
+  background-color: #2ecc71;
+}
+
+.toast-message.success .toast-message__icon {
+  color: #2ecc71;
+  background-color: rgba(46, 204, 113, 0.1);
 }
 
 .toast-message.error {
-  background-color: rgba(231, 76, 60, 0.9);
-  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+  background-color: #fef5f5;
+  color: #b83a38;
+}
+
+.toast-message.error::before {
+  background-color: #e74c3c;
+}
+
+.toast-message.error .toast-message__icon {
+  color: #e74c3c;
+  background-color: rgba(231, 76, 60, 0.1);
 }
 
 .toast-message.warning {
-  background-color: rgba(243, 156, 18, 0.9);
-  box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);
+  background-color: #fef9ef;
+  color: #af7010;
+}
+
+.toast-message.warning::before {
+  background-color: #f39c12;
+}
+
+.toast-message.warning .toast-message__icon {
+  color: #f39c12;
+  background-color: rgba(243, 156, 18, 0.1);
+}
+
+.toast-message.default {
+  background-color: #f5f9ff;
+  color: #3273dc;
+}
+
+.toast-message.default::before {
+  background-color: #3498db;
+}
+
+.toast-message.default .toast-message__icon {
+  color: #3498db;
+  background-color: rgba(52, 152, 219, 0.1);
 }
 
 .toast-fade-enter-active,
 .toast-fade-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .toast-fade-enter-from {
-  transform: translateY(30px);
+  transform: translateY(30px) translateX(-50%);
   opacity: 0;
 }
 
 .toast-fade-leave-to {
   opacity: 0;
-  transform: translateY(-30px);
+  transform: translateY(-20px) translateX(-50%);
 }
 
 @media (max-width: 768px) {
   .toast-container {
-    width: 90%;
-    max-width: 400px;
+    bottom: 30px;
+    width: 92%;
+    max-width: 360px;
   }
-
+  
   .toast-message {
-    width: 100%;
-    max-width: none;
-    min-width: 0;
+    padding: 14px 18px;
+    font-size: 14px;
+  }
+  
+  .toast-message__icon {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+    margin-right: 12px;
   }
 }
 </style> 
