@@ -78,7 +78,7 @@ class Database {
       await fs.ensureDir(DATA_DIR);
       
       // 创建各种数据子目录
-      const collections = ['registrations', 'payments', 'teams', 'admins'];
+      const collections = ['registrations', 'payments', 'teams', 'admins', 'stats'];
       for (const collection of collections) {
         await fs.ensureDir(path.join(DATA_DIR, collection));
       }

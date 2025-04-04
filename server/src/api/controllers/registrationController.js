@@ -331,10 +331,39 @@ const getTeamMembers = async (req, res) => {
  */
 const createTeamLeader = async (req, res) => {
   try {
+    // 适配前端扁平结构的数据
     const {
-      teamName,
-      leader
+      name,
+      phone,
+      openid,
+      email,
+      gender = 'male', // 默认为男性
+      teamName = name, // 如果没有传teamName，则使用name作为teamName
+      eventId = '6425abc1234567890abcdef', // 使用默认值
+      categoryId = '6425abc1234567890abcdef', // 使用默认值
+      ...otherProps
     } = req.body;
+    
+    // 验证必填参数
+    if (!name || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: '姓名和手机号为必填项'
+      });
+    }
+    
+    // 导入所需的状态常量
+    const { REGISTRATION_STATUS } = require('../../core/models/Registration');
+    
+    // 构建leader对象
+    const leader = {
+      name,
+      phone,
+      gender,
+      openid,
+      email,
+      ...otherProps
+    };
     
     // 获取Registration模型
     const registrationModel = ModelFactory.getModel(Registration);
@@ -365,10 +394,15 @@ const createTeamLeader = async (req, res) => {
     // 创建预注册记录
     const registration = await registrationModel.create({
       teamName,
+      name: teamName,
+      phone: leader.phone,
+      gender: leader.gender,
+      eventId,
+      categoryId,
       leader,
       members: [],
       inviteCode,
-      status: '预注册',
+      status: REGISTRATION_STATUS.PENDING, // 使用正确的枚举值
       createdAt: new Date()
     });
     

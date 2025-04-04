@@ -1,4 +1,4 @@
-import { adminApi } from '../../api'
+import { adminApi, statsApi } from '../../api'
 
 /**
  * 活动状态管理模块
@@ -55,14 +55,14 @@ const actions = {
     try {
       // 同时记录浏览量
       try {
-        await adminApi.recordView()
+        await statsApi.recordView()
       } catch (viewError) {
         console.error('记录浏览量失败:', viewError)
         // 继续加载统计数据，不影响主流程
       }
       
       // 获取活动统计数据
-      const result = await adminApi.getStats()
+      const result = await statsApi.getPublicStats()
       
       if (result?.success && result.data) {
         // 确保viewsCount为数字
@@ -75,11 +75,6 @@ const actions = {
         
         // 提交到store
         const statsData = {
-          totalCount: result.data.totalCount || 0,
-          teamLeaderCount: result.data.teamLeaderCount || 0,
-          teamMemberCount: result.data.teamMemberCount || 0,
-          totalAmount: result.data.totalAmount || 0,
-          todayCount: result.data.todayCount || 0,
           viewsCount: viewsCount
         }
         
@@ -117,11 +112,6 @@ const actions = {
  */
 function getDefaultStats() {
   return {
-    totalCount: 0,
-    teamLeaderCount: 0,
-    teamMemberCount: 0,
-    totalAmount: 0,
-    todayCount: 0,
     viewsCount: 0
   }
 }

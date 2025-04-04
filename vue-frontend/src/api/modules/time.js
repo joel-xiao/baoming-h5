@@ -11,7 +11,7 @@ import { withCache } from '../core/cache';
  */
 export const getServerTime = async () => {
   try {
-    return await apiInstance.get('/time');
+    return await apiInstance.get('/time/server-time');
   } catch (error) {
     return handleApiError(error);
   }

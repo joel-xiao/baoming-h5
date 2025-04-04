@@ -3,6 +3,7 @@ const registrationRoutes = require('./registrationRoutes');
 const paymentRoutes = require('./paymentRoutes');
 const adminRoutes = require('./adminRoutes');
 const authRoutes = require('./authRoutes');
+const statsRoutes = require('./statsRoutes');
 
 const router = express.Router();
 
@@ -11,9 +12,17 @@ router.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });
 });
 
-// 服务器时间
-router.get('/time', (req, res) => {
-  res.json({ serverTime: new Date() });
+// 服务器时间API，符合前端期望格式
+router.get('/time/server-time', (req, res) => {
+  const now = new Date();
+  res.json({ 
+    success: true, 
+    message: '获取服务器时间成功',
+    data: { 
+      timestamp: now.getTime(),
+      serverTime: now.toISOString()
+    }
+  });
 });
 
 // 各模块路由
@@ -21,5 +30,6 @@ router.use('/auth', authRoutes);
 router.use('/registration', registrationRoutes);
 router.use('/payment', paymentRoutes);
 router.use('/admin', adminRoutes);
+router.use('/stats', statsRoutes);
 
 module.exports = router; 

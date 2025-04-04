@@ -48,34 +48,6 @@
       <p>加载中，请稍候...</p>
     </div>
     
-    <!-- 数据统计 -->
-    <div class="stats-panel" v-if="statsApi.data">
-      <div class="stat-item">
-        <div class="stat-value">{{ statsApi.data.totalCount }}</div>
-        <div class="stat-label">总报名人数</div>
-      </div>
-      
-      <div class="stat-item">
-        <div class="stat-value">{{ statsApi.data.teamLeaderCount }}</div>
-        <div class="stat-label">领队数量</div>
-      </div>
-      
-      <div class="stat-item">
-        <div class="stat-value">{{ statsApi.data.teamMemberCount }}</div>
-        <div class="stat-label">队员数量</div>
-      </div>
-      
-      <div class="stat-item">
-        <div class="stat-value">¥{{ statsApi.data.totalAmount }}</div>
-        <div class="stat-label">总收入</div>
-      </div>
-      
-      <div class="stat-item">
-        <div class="stat-value">{{ statsApi.data.todayCount }}</div>
-        <div class="stat-label">今日报名</div>
-      </div>
-    </div>
-    
     <!-- 数据表格 -->
     <div class="data-table">
       <table>

@@ -22,7 +22,7 @@ module.exports = {
   // 允许的跨域源
   corsOrigins: process.env.CORS_ORIGINS 
     ? process.env.CORS_ORIGINS.split(',') 
-    : ['http://localhost:8080'],
+    : ['http://localhost:8080','http://127.0.0.1:8080'],
 
   // 安全相关配置
   security: {
