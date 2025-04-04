@@ -28,104 +28,58 @@
 
 <script>
 import axios from 'axios';
-import { defineComponent } from 'vue';
-import { useStore } from 'vuex';
+import { defineComponent, onMounted, onBeforeUnmount, ref, computed } from 'vue';
+import { useActivity } from '../store/hooks';
 
 export default defineComponent({
   name: 'CountdownTimer',
   setup() {
-    const store = useStore();
-    return { store };
-  },
-  data() {
-    return {
-      days: 0,
-      hours: 0,
-      minutes: 0,
-      seconds: 0,
-      timeEnded: false,
-      timeOffset: 0,
-      timerInterval: null,
-      syncInterval: null,
-      endTime: 0,
-      isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-    };
-  },
-  created() {
-    console.log('设备类型:', this.isMobile ? '移动设备' : '桌面设备');
+    // 使用活动相关的hooks
+    const activity = useActivity();
     
-    // 从store获取截止时间
-    const endTimeStr = this.store.state.activityConfig.endTime;
-    try {
-      this.endTime = new Date(endTimeStr).getTime();
-      if (isNaN(this.endTime)) {
-        throw new Error('无效的日期格式');
-      }
-      console.log('设置截止时间:', new Date(this.endTime).toISOString());
-    } catch (error) {
-      console.error('解析截止时间出错:', error);
-      // 设置一个默认值（当前时间后一天）
-      this.endTime = Date.now() + 24 * 60 * 60 * 1000;
-    }
+    // 活动结束时间
+    const endTimeStr = computed(() => activity.endTime.value);
     
-    // 尝试从localStorage读取偏移量
-    try {
-      const savedOffset = localStorage.getItem('timeOffset');
-      if (savedOffset) {
-        this.timeOffset = Number(savedOffset);
-        console.log('使用保存的时间偏移:', this.timeOffset);
-      }
-    } catch (e) {
-      // 忽略localStorage访问错误
-      console.warn('读取本地存储失败，使用默认值');
-    }
+    // 定义响应式状态
+    const days = ref(0);
+    const hours = ref(0);
+    const minutes = ref(0);
+    const seconds = ref(0);
+    const timeEnded = ref(false);
+    const timeOffset = ref(0);
+    const endTime = ref(0);
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    // 首次立即同步时间
-    this.syncTime();
+    let timerInterval = null;
+    let syncInterval = null;
     
-    // 设置定时更新
-    this.timerInterval = setInterval(() => {
-      this.updateCountdown();
-    }, 1000);
-    
-    // 定时同步网络时间
-    const syncInterval = this.isMobile ? 10 * 60 * 1000 : 5 * 60 * 1000;
-    this.syncInterval = setInterval(() => {
-      this.syncTime();
-    }, syncInterval);
-  },
-  beforeUnmount() {
-    if (this.timerInterval) clearInterval(this.timerInterval);
-    if (this.syncInterval) clearInterval(this.syncInterval);
-  },
-  methods: {
     // 更新倒计时
-    updateCountdown() {
+    const updateCountdown = () => {
       // 当前时间加偏移
-      const now = Date.now() + this.timeOffset;
+      const now = Date.now() + timeOffset.value;
       // 剩余毫秒数
-      const timeLeft = Math.max(0, this.endTime - now);
+      const timeLeft = Math.max(0, endTime.value - now);
       
       // 计算各时间单位
-      const seconds = Math.floor((timeLeft / 1000) % 60);
-      const minutes = Math.floor((timeLeft / (1000 * 60)) % 60);
-      const hours = Math.floor((timeLeft / (1000 * 60 * 60)) % 24);
-      const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+      const secs = Math.floor((timeLeft / 1000) % 60);
+      const mins = Math.floor((timeLeft / (1000 * 60)) % 60);
+      const hrs = Math.floor((timeLeft / (1000 * 60 * 60)) % 24);
+      const dys = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
       
-      this.days = days;
-      this.hours = hours;
-      this.minutes = minutes;
-      this.seconds = seconds;
+      days.value = dys;
+      hours.value = hrs;
+      minutes.value = mins;
+      seconds.value = secs;
       
       // 检查是否结束
-      if (timeLeft <= 0 && !this.timeEnded) {
-        this.timeEnded = true;
-        this.store.commit('setActivityEndedStatus', true);
+      if (timeLeft <= 0 && !timeEnded.value) {
+        timeEnded.value = true;
+        activity.checkActivityEnd();
       }
-    },
+    };
     
     // 同步网络时间
-    async syncTime() {
+    const syncTime = async () => {
       try {
         // 使用淘宝时间API
         const startTime = Date.now();
@@ -138,18 +92,18 @@ export default defineComponent({
           const roundTrip = Date.now() - startTime;
           // 计算偏移量，考虑网络延迟
           const networkDelay = Math.floor(roundTrip / 2);
-          this.timeOffset = serverTime - Date.now() + networkDelay;
+          timeOffset.value = serverTime - Date.now() + networkDelay;
           
           // 保存到localStorage
           try {
-            localStorage.setItem('timeOffset', this.timeOffset.toString());
+            localStorage.setItem('timeOffset', timeOffset.value.toString());
           } catch (e) {
             // 忽略存储错误
             console.warn('无法保存时间偏移到存储');
           }
           
-          console.log('时间同步完成，偏移量:', this.timeOffset, 'ms');
-          this.updateCountdown();
+          console.log('时间同步完成，偏移量:', timeOffset.value, 'ms');
+          updateCountdown();
           return true;
         }
       } catch (error) {
@@ -167,18 +121,18 @@ export default defineComponent({
             const networkDelay = Math.floor(roundTrip / 2);
             // 调整为北京时间（+8小时）
             const serverTime = serverDate.getTime() + 8 * 60 * 60 * 1000;
-            this.timeOffset = serverTime - Date.now() + networkDelay;
+            timeOffset.value = serverTime - Date.now() + networkDelay;
             
             // 保存到localStorage
             try {
-              localStorage.setItem('timeOffset', this.timeOffset.toString());
+              localStorage.setItem('timeOffset', timeOffset.value.toString());
             } catch (e) {
               // 忽略存储错误
               console.warn('无法保存备用时间偏移到存储');
             }
             
-            console.log('备用方式同步完成，偏移量:', this.timeOffset, 'ms');
-            this.updateCountdown();
+            console.log('备用方式同步完成，偏移量:', timeOffset.value, 'ms');
+            updateCountdown();
             return true;
           }
         }
@@ -187,9 +141,70 @@ export default defineComponent({
       }
       
       return false;
-    }
+    };
+    
+    // 监听endTimeStr变化
+    const updateEndTime = () => {
+      try {
+        endTime.value = new Date(endTimeStr.value).getTime();
+        if (isNaN(endTime.value)) {
+          throw new Error('无效的日期格式');
+        }
+        console.log('设置截止时间:', new Date(endTime.value).toISOString());
+      } catch (error) {
+        console.error('解析截止时间出错:', error);
+        // 设置一个默认值（当前时间后一天）
+        endTime.value = Date.now() + 24 * 60 * 60 * 1000;
+      }
+    };
+    
+    onMounted(() => {
+      console.log('设备类型:', isMobile ? '移动设备' : '桌面设备');
+      
+      // 设置活动结束时间
+      updateEndTime();
+      
+      // 尝试从localStorage读取偏移量
+      try {
+        const savedOffset = localStorage.getItem('timeOffset');
+        if (savedOffset) {
+          timeOffset.value = Number(savedOffset);
+          console.log('使用保存的时间偏移:', timeOffset.value);
+        }
+      } catch (e) {
+        // 忽略localStorage访问错误
+        console.warn('读取本地存储失败，使用默认值');
+      }
+      
+      // 首次立即同步时间
+      syncTime();
+      
+      // 设置定时更新
+      timerInterval = setInterval(() => {
+        updateCountdown();
+      }, 1000);
+      
+      // 定时同步网络时间
+      const syncIntervalTime = isMobile ? 10 * 60 * 1000 : 5 * 60 * 1000;
+      syncInterval = setInterval(() => {
+        syncTime();
+      }, syncIntervalTime);
+    });
+    
+    onBeforeUnmount(() => {
+      if (timerInterval) clearInterval(timerInterval);
+      if (syncInterval) clearInterval(syncInterval);
+    });
+    
+    return {
+      days,
+      hours,
+      minutes,
+      seconds,
+      timeEnded
+    };
   }
-})
+});
 </script>
 
 <style scoped>

@@ -49,8 +49,8 @@
 
 <script>
 import { ref, computed } from 'vue'
-import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
+import { useActivity, useUser, useRegistration, useDanmu } from '../store/hooks'
 
 export default {
   name: 'RegistrationForm',
@@ -62,8 +62,13 @@ export default {
   },
   emits: ['update:isFormVisible'],
   setup(props, { emit }) {
-    const store = useStore()
     const router = useRouter()
+    
+    // 使用模块化hooks
+    const activity = useActivity()
+    const user = useUser()
+    const registration = useRegistration()
+    const danmu = useDanmu()
     
     const name = ref('')
     const phone = ref('')
@@ -72,17 +77,25 @@ export default {
     const isSubmitting = ref(false)
     const isNetworkTimeAvailable = ref(true)
     
-    const price = computed(() => store.state.activityConfig.price)
-    const isActivityEnded = computed(() => store.getters.isActivityEnded)
+    // 使用activity.price获取价格，并提供默认值
+    const price = computed(() => {
+      // 确保activity.price存在，如果不存在则返回默认值99
+      if (!activity || !activity.price || activity.price.value === undefined) {
+        return 99
+      }
+      return activity.price.value
+    })
+    
+    const isActivityEnded = computed(() => activity.activityEnded.value)
     
     const selectUserType = (type) => {
       userType.value = type
-      store.commit('setUserType', type)
+      user.setUserType(type)
       
       // 触发弹幕
       if (name.value) {
         const danmuText = type === 'team_leader' ? '成为队长啦！' : '加入团队啦！'
-        store.dispatch('triggerSpecialDanmu', {
+        danmu.triggerSpecialDanmu({
           type: 'team',
           text: danmuText,
           userName: name.value
@@ -122,17 +135,17 @@ export default {
     const submitRegistration = async () => {
       if (!validateForm()) return
       
-      // 更新用户信息到store
-      store.commit('setUserInfo', { name: name.value, phone: phone.value })
+      // 更新用户信息
+      user.updateUserInfo({ name: name.value, phone: phone.value })
       if (userType.value === 'team_member') {
-        store.commit('setTeamCode', teamCode.value)
+        user.setTeamCode(teamCode.value)
       }
       
       isSubmitting.value = true
       
       try {
         // 提交报名信息
-        const result = await store.dispatch('submitRegistration')
+        const result = await registration.submitRegistration()
         
         if (result.success) {
           // 判断是否有微信支付参数

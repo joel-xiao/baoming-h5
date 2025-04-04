@@ -56,10 +56,11 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
-import { paymentApi } from '../api/index.js'
+import { paymentApi } from '../api'
+import { useApi } from '../api/hooks/useApi'
 
 export default {
   name: 'SuccessView',
@@ -67,55 +68,68 @@ export default {
     const route = useRoute()
     const router = useRouter()
     const store = useStore()
-    const registrationInfo = ref(null)
-    const isLoading = ref(true)
     const isCopied = ref(false)
     
     const orderNo = computed(() => route.query.orderNo || '')
+    
+    // 使用useApi Hook封装API调用逻辑
+    const { 
+      data: paymentData, 
+      loading: isLoading, 
+      error, 
+      execute: checkPayment 
+    } = useApi(
+      () => paymentApi.getPaymentStatus(orderNo.value),
+      {
+        onError: (err) => {
+          console.error('获取报名信息失败:', err)
+          alert('获取订单信息失败，请稍后再试')
+          router.push('/')
+        }
+      }
+    )
+    
+    // 将API返回的数据转换为组件所需格式
+    const registrationInfo = computed(() => {
+      if (!paymentData.value) return null
+      
+      return {
+        name: paymentData.value.name,
+        phone: paymentData.value.phone,
+        amount: paymentData.value.paymentAmount,
+        orderNo: paymentData.value.orderNo || orderNo.value,
+        isTeamLeader: paymentData.value.isTeamLeader,
+        teamId: paymentData.value.teamId,
+        createdAt: paymentData.value.paymentTime || paymentData.value.createdAt
+      }
+    })
+    
+    // 计算属性
     const isTeamLeader = computed(() => registrationInfo.value?.isTeamLeader || false)
     const teamId = computed(() => registrationInfo.value?.teamId || orderNo.value || '')
     
-    const fetchRegistrationInfo = async () => {
-      if (!orderNo.value) {
-        return router.push('/')
-      }
-      
-      try {
-        isLoading.value = true
-        
-        // 使用API获取订单信息
-        // eslint-disable-next-line no-undef
-        const result = await paymentApi.getPaymentStatus(orderNo.value)
-        
-        if (result.success && result.data && result.data.paymentStatus === 'success') {
-          // 使用API返回的数据
-          registrationInfo.value = {
-            name: result.data.name,
-            phone: result.data.phone,
-            amount: result.data.paymentAmount,
-            orderNo: result.data.orderNo || orderNo.value,
-            isTeamLeader: result.data.isTeamLeader,
-            teamId: result.data.teamId,
-            createdAt: result.data.paymentTime || result.data.createdAt
-          }
-        } else if (result.data && result.data.paymentStatus === 'pending') {
-          // 轮询检查支付状态
-          setTimeout(() => {
-            fetchRegistrationInfo()
-          }, 3000)
-        } else {
-          // 支付失败或出错，返回首页
-          alert('支付未成功，请重新报名')
-          router.push('/')
-        }
-      } catch (error) {
-        console.error('获取报名信息失败:', error)
-        alert('获取订单信息失败，请稍后再试')
+    // 监视orderNo变化自动请求
+    watch(orderNo, (newValue) => {
+      if (newValue) {
+        checkPayment()
+      } else {
         router.push('/')
-      } finally {
-        isLoading.value = false
       }
-    }
+    }, { immediate: true })
+    
+    // 监视支付状态自动轮询
+    watch(paymentData, (newValue) => {
+      if (newValue && newValue.paymentStatus === 'pending') {
+        // 轮询检查支付状态
+        setTimeout(() => {
+          checkPayment()
+        }, 3000)
+      } else if (newValue && newValue.paymentStatus !== 'success') {
+        // 支付失败或出错，返回首页
+        alert('支付未成功，请重新报名')
+        router.push('/')
+      }
+    })
     
     const maskPhone = (phone) => {
       if (!phone || phone.length !== 11) return phone
@@ -169,10 +183,6 @@ export default {
     const goToHome = () => {
       router.push('/')
     }
-    
-    onMounted(() => {
-      fetchRegistrationInfo()
-    })
     
     return {
       registrationInfo,

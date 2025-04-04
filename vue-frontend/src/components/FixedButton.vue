@@ -21,21 +21,35 @@
 
 <script>
 import { computed, ref, provide, onMounted } from 'vue'
-import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
+import { useActivity, useUser, useDanmu, useSystem } from '../store/hooks'
 
 export default {
   name: 'FixedButton',
   setup() {
-    const store = useStore()
     const router = useRouter()
+    
+    // 使用模块化hooks
+    const activity = useActivity()
+    const user = useUser()
+    const danmu = useDanmu()
+    const system = useSystem()
+    
     const isFormVisible = ref(false)
     const isSubmitting = ref(false)
     const isPaymentVisible = ref(false)
     const orderInfo = ref({})
     
-    const price = computed(() => store.state.activityConfig.price)
-    const isActivityEnded = computed(() => store.getters.isActivityEnded)
+    // 使用activity.price获取价格，并提供默认值
+    const price = computed(() => {
+      // 确保activity.price存在，如果不存在则返回默认值99
+      if (!activity || !activity.price || activity.price.value === undefined) {
+        return 99
+      }
+      return activity.price.value
+    })
+    
+    const isActivityEnded = computed(() => activity.activityEnded.value)
     
     // 监控表单可见性
     const watchFormVisibility = () => {
@@ -63,10 +77,10 @@ export default {
       
       // 如果表单未显示，则显示表单
       if (!isFormVisible.value) {
-        store.dispatch('submitHandler')
+        user.submitHandler()
         
         // 用户点击时触发弹幕效果
-        store.dispatch('triggerSpecialDanmu', {
+        danmu.triggerSpecialDanmu({
           type: 'action',
           text: '我要报名',
           userName: ''
@@ -94,7 +108,7 @@ export default {
       console.log('支付成功:', data)
       
       // 触发成功弹幕
-      store.dispatch('triggerSpecialDanmu', {
+      danmu.triggerSpecialDanmu({
         type: 'success',
         text: '报名成功啦！',
         userName: orderInfo.value.name
@@ -112,8 +126,8 @@ export default {
     // 处理支付失败
     const handlePaymentFailed = (data) => {
       console.log('支付失败:', data)
-      store.dispatch('setSystemError', {
-        type: 'error',
+      system.setError({
+        show: true,
         message: data.error || '支付过程中发生错误'
       })
     }

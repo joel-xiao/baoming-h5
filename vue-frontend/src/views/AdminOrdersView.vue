@@ -6,7 +6,7 @@
       <div class="filters">
         <div class="filter">
           <label for="status-filter">支付状态:</label>
-          <select id="status-filter" v-model="filters.status" @change="fetchOrders">
+          <select id="status-filter" v-model="ordersApi.filters.status" @change="onStatusChange">
             <option value="">全部</option>
             <option value="success">支付成功</option>
             <option value="pending">待支付</option>
@@ -16,62 +16,62 @@
         
         <div class="filter">
           <label>每页显示：</label>
-          <select v-model="pageSize" @change="fetchOrders">
-            <option value="10">10条</option>
-            <option value="20">20条</option>
-            <option value="50">50条</option>
+          <select v-model="pageSize" @change="onPageSizeChange">
+            <option :value="10">10条</option>
+            <option :value="20">20条</option>
+            <option :value="50">50条</option>
           </select>
         </div>
       </div>
       
       <div class="actions">
-        <button class="refresh-btn" @click="fetchOrders" :disabled="isLoading">
+        <button class="refresh-btn" @click="ordersApi.loadData()" :disabled="ordersApi.loading">
           <span class="refresh-icon"></span>
-          <span>刷新</span>
+          <span>{{ ordersApi.loading ? '加载中...' : '刷新' }}</span>
         </button>
         
         <button class="export-btn" @click="exportData" :disabled="isExporting">
           <span class="export-icon"></span>
-          <span>导出数据</span>
+          <span>{{ isExporting ? '导出中...' : '导出数据' }}</span>
         </button>
       </div>
     </div>
     
     <!-- 错误信息显示 -->
-    <div v-if="errorMessage" class="error-message">
-      <p>{{ errorMessage }}</p>
-      <button @click="fetchOrders">重试</button>
+    <div v-if="ordersApi.error" class="error-message">
+      <p>{{ ordersApi.error.message }}</p>
+      <button @click="ordersApi.loadData()">重试</button>
     </div>
     
     <!-- 加载状态 -->
-    <div v-if="isLoading" class="loading-indicator">
+    <div v-if="ordersApi.loading && !ordersApi.items.length" class="loading-indicator">
       <p>加载中，请稍候...</p>
     </div>
     
     <!-- 数据统计 -->
-    <div class="stats-panel" v-if="stats">
+    <div class="stats-panel" v-if="statsApi.data">
       <div class="stat-item">
-        <div class="stat-value">{{ stats.totalCount }}</div>
+        <div class="stat-value">{{ statsApi.data.totalCount }}</div>
         <div class="stat-label">总报名人数</div>
       </div>
       
       <div class="stat-item">
-        <div class="stat-value">{{ stats.teamLeaderCount }}</div>
+        <div class="stat-value">{{ statsApi.data.teamLeaderCount }}</div>
         <div class="stat-label">领队数量</div>
       </div>
       
       <div class="stat-item">
-        <div class="stat-value">{{ stats.teamMemberCount }}</div>
+        <div class="stat-value">{{ statsApi.data.teamMemberCount }}</div>
         <div class="stat-label">队员数量</div>
       </div>
       
       <div class="stat-item">
-        <div class="stat-value">¥{{ stats.totalAmount }}</div>
+        <div class="stat-value">¥{{ statsApi.data.totalAmount }}</div>
         <div class="stat-label">总收入</div>
       </div>
       
       <div class="stat-item">
-        <div class="stat-value">{{ stats.todayCount }}</div>
+        <div class="stat-value">{{ statsApi.data.todayCount }}</div>
         <div class="stat-label">今日报名</div>
       </div>
     </div>
@@ -92,7 +92,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="order in orders" :key="order._id">
+          <tr v-for="order in ordersApi.items" :key="order._id">
             <td class="order-no">{{ order.orderNo }}</td>
             <td>{{ order.name }}</td>
             <td>{{ order.phone }}</td>
@@ -110,29 +110,29 @@
       </table>
       
       <!-- 空数据提示 -->
-      <div class="empty-data" v-if="orders.length === 0 && !isLoading">
+      <div class="empty-data" v-if="ordersApi.items.length === 0 && !ordersApi.loading">
         没有找到符合条件的数据
       </div>
     </div>
     
     <!-- 分页 -->
-    <div class="pagination" v-if="pageInfo.total > 0">
+    <div class="pagination" v-if="ordersApi.totalItems > 0">
       <button 
         class="page-btn" 
-        :disabled="pageInfo.current === 1" 
-        @click="changePage(pageInfo.current - 1)"
+        :disabled="ordersApi.page === 1" 
+        @click="ordersApi.goToPage(ordersApi.page - 1)"
       >
         上一页
       </button>
       
       <div class="page-info">
-        {{ pageInfo.current }} / {{ pageInfo.pages }}
+        {{ ordersApi.page }} / {{ ordersApi.totalPages }}
       </div>
       
       <button 
         class="page-btn" 
-        :disabled="pageInfo.current === pageInfo.pages" 
-        @click="changePage(pageInfo.current + 1)"
+        :disabled="ordersApi.page === ordersApi.totalPages" 
+        @click="ordersApi.goToPage(ordersApi.page + 1)"
       >
         下一页
       </button>
@@ -141,153 +141,81 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { adminApi } from '../api'
+import { usePagination, useApi } from '../api/hooks/useApi'
 
 export default {
   name: 'AdminOrdersView',
   setup() {
-    // 数据
-    const orders = ref([])
-    const stats = ref(null)
-    const isLoading = ref(false)
-    const isExporting = ref(false)
-    const errorMessage = ref('')
-    
-    // 分页信息
-    const pageInfo = reactive({
-      current: 1,
-      pages: 1,
-      total: 0
-    })
-    
     // 每页显示数量
     const pageSize = ref(10)
     
-    // 筛选条件
-    const filters = reactive({
-      status: ''
-    })
-    
-    // 获取订单数据
-    const fetchOrders = async () => {
-      try {
-        isLoading.value = true
-        errorMessage.value = '' // 清除之前的错误信息
-        
-        // 构建查询参数
-        const params = {
-          page: pageInfo.current,
-          limit: pageSize.value
-        }
-        
-        if (filters.status) {
-          params.status = filters.status
-        }
-        
-        console.log('正在请求订单数据:', params)
-        
-        // 调用API获取订单数据
-        const response = await adminApi.getPaymentOrders(params)
-        console.log('订单数据响应:', response)
-        
-        // 检查响应格式和内容
-        if (!response) {
-          throw new Error('未收到服务器响应')
-        }
-        
-        if (response.success) {
-          if (!response.data || !response.data.orders) {
-            console.warn('响应格式不正确:', response)
-            errorMessage.value = '服务器返回了错误的数据格式'
-            return
-          }
-          
-          // 保存订单数据
-          orders.value = response.data.orders
-          
-          // 检查并设置分页信息
-          if (response.data.pagination) {
-            pageInfo.current = response.data.pagination.page || 1
-            pageInfo.pages = response.data.pagination.pages || 1
-            pageInfo.total = response.data.pagination.total || 0
-          } else {
-            console.warn('响应中缺少分页信息')
-            pageInfo.current = 1
-            pageInfo.pages = 1
-            pageInfo.total = response.data.orders.length
-          }
-          
-          // 尝试获取统计数据
-          try {
-            await fetchStats()
-          } catch (statsError) {
-            console.error('获取统计数据失败，但不影响订单显示:', statsError)
-          }
-        } else {
-          // 显示错误信息
-          errorMessage.value = response.message || '获取订单数据失败'
-          console.error('获取订单失败:', response)
-        }
-      } catch (error) {
-        console.error('获取订单数据错误:', error)
-        errorMessage.value = error.message || '系统发生错误，请稍后再试'
-      } finally {
-        isLoading.value = false
+    // 使用分页API Hook
+    const ordersApi = usePagination(adminApi.getRegistrations, {
+      pageSize: pageSize.value,
+      immediate: true,
+      initialFilters: {
+        status: ''
       }
-    }
+    });
     
-    // 获取统计数据
-    const fetchStats = async () => {
-      try {
-        const response = await adminApi.getStats()
-        
-        if (response.success) {
-          stats.value = response.data
-        }
-      } catch (error) {
-        console.error('获取统计数据错误:', error)
-      }
-    }
+    // 统计数据API Hook
+    const statsApi = useApi(adminApi.getCachedStats, {
+      immediate: true
+    });
+    
+    // 状态变量
+    const isExporting = ref(false);
+    
+    // 页面大小变化处理
+    const onPageSizeChange = () => {
+      ordersApi.loadData();
+    };
+    
+    // 状态筛选变化处理
+    const onStatusChange = () => {
+      ordersApi.goToPage(1); // 切换到第一页
+    };
     
     // 导出数据
     const exportData = async () => {
-      try {
-        isExporting.value = true
-        
-        // 构建导出参数
-        const params = {}
-        
-        if (filters.status) {
-          params.status = filters.status
-        }
-        
-        // 调用导出API
-        const response = await adminApi.exportRegistrations(params)
-        
-        // 创建下载链接
-        const url = window.URL.createObjectURL(new Blob([response], { type: 'text/csv' }))
-        const link = document.createElement('a')
-        link.href = url
-        link.setAttribute('download', `报名数据_${new Date().toISOString().slice(0, 10)}.csv`)
-        document.body.appendChild(link)
-        link.click()
-        link.remove()
-      } catch (error) {
-        console.error('导出数据错误:', error)
-        alert('导出数据失败，请重试')
-      } finally {
-        isExporting.value = false
-      }
-    }
-    
-    // 切换页码
-    const changePage = (page) => {
-      if (page < 1 || page > pageInfo.pages) return
+      if (isExporting.value) return;
       
-      pageInfo.current = page
-      fetchOrders()
-    }
+      try {
+        isExporting.value = true;
+        
+        // 导出当前筛选条件的数据
+        const result = await adminApi.exportData({
+          status: ordersApi.filters.status,
+          format: 'excel'
+        });
+        
+        // 处理下载逻辑
+        if (result instanceof Blob) {
+          const url = window.URL.createObjectURL(result);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `报名数据_${new Date().toISOString().slice(0,10)}.xlsx`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } else {
+          throw new Error('导出数据格式错误');
+        }
+      } catch (error) {
+        console.error('导出数据失败:', error);
+        alert('导出数据失败，请重试');
+      } finally {
+        isExporting.value = false;
+      }
+    };
+    
+    // 监听页面大小变化
+    watch(pageSize, (newSize) => {
+      ordersApi.loadData();
+    });
     
     // 格式化日期
     const formatDate = (dateString) => {
@@ -307,25 +235,16 @@ export default {
       }
     }
     
-    // 初始化
-    onMounted(() => {
-      fetchOrders()
-    })
-    
     return {
-      orders,
-      stats,
-      isLoading,
-      isExporting,
-      pageInfo,
+      ordersApi,
+      statsApi,
       pageSize,
-      filters,
-      fetchOrders,
+      isExporting,
       exportData,
-      changePage,
       formatDate,
       getStatusText,
-      errorMessage
+      onStatusChange,
+      onPageSizeChange
     }
   }
 }

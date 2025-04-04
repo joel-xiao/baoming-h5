@@ -5,7 +5,7 @@
   <div class="orders-container" ref="ordersContainer">
     <div class="orders-wrapper" ref="ordersWrapper">
       <div class="orders">
-        <div class="order-item" v-for="(order, index) in orders" :key="index">
+        <div class="order-item" v-for="(order, index) in displayOrders" :key="index">
           <div class="order-user">
             <div class="order-avatar">{{ order.name.charAt(0) }}</div>
             <div class="order-info">
@@ -20,8 +20,8 @@
         </div>
       </div>
       <!-- 复制一份内容用于无缝滚动 -->
-      <div class="orders" v-if="orders.length > 5">
-        <div class="order-item" v-for="(order, index) in orders" :key="`dup-${index}`">
+      <div class="orders" v-if="shouldDuplicate">
+        <div class="order-item" v-for="(order, index) in displayOrders" :key="`dup-${index}`">
           <div class="order-user">
             <div class="order-avatar">{{ order.name.charAt(0) }}</div>
             <div class="order-info">
@@ -41,13 +41,15 @@
 
 <script>
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
-import { useStore } from 'vuex'
-import { registrationApi } from '../api'
+import { useActivity, useRegistration } from '../store/hooks'
 
 export default {
   name: 'OrdersList',
   setup() {
-    const store = useStore()
+    // 使用模块化hooks
+    const activity = useActivity()
+    const registration = useRegistration()
+    
     const ordersContainer = ref(null)
     const ordersWrapper = ref(null)
     
@@ -59,15 +61,26 @@ export default {
     const scrollSpeed = ref(0.8) // 大幅提高滚动速度，从0.3改为0.8
     const shouldScroll = ref(false)
     
-    const orders = computed(() => store.state.orders)
+    // 使用activity中的orders数据
+    const orders = computed(() => activity.orders.value || [])
+    
+    // 安全的显示订单，确保不会是undefined
+    const displayOrders = computed(() => {
+      return orders.value || []
+    })
+    
+    // 是否需要复制一份订单列表
+    const shouldDuplicate = computed(() => {
+      return displayOrders.value.length > 5
+    })
     
     // 从API加载订单数据
     const loadOrders = async () => {
       try {
-        // 直接使用store中的方法获取订单数据
-        await store.dispatch('loadOrders');
+        // 使用registration钩子加载订单数据
+        await registration.loadOrders()
       } catch (error) {
-        console.error('加载订单数据失败:', error);
+        console.error('加载订单数据失败:', error)
       }
     }
     
@@ -94,7 +107,7 @@ export default {
       updateHeights()
       
       // 基于元素高度判断是否需要滚动
-      shouldScroll.value = orders.value.length > 5
+      shouldScroll.value = displayOrders.value.length > 5
       
       if (!shouldScroll.value) return
       
@@ -143,7 +156,7 @@ export default {
     }
     
     // 监控订单数据变化，更新滚动设置
-    watch(() => orders.value.length, (newLength) => {
+    watch(() => displayOrders.value.length, (newLength) => {
       shouldScroll.value = newLength > 5
       updateHeights()
       
@@ -180,7 +193,8 @@ export default {
     })
     
     return {
-      orders,
+      displayOrders,
+      shouldDuplicate,
       ordersContainer,
       ordersWrapper
     }

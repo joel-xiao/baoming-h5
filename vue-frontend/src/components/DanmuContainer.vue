@@ -6,12 +6,24 @@
 
 <script>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { useStore } from 'vuex'
+import { useActivity, useDanmu } from '../store/hooks'
 
 export default {
   name: 'DanmuContainer',
   setup() {
-    const store = useStore()
+    // 使用模块化hooks
+    const activity = useActivity()
+    const danmuHook = useDanmu()
+    
+    // 检查hooks是否正确初始化
+    if (!danmuHook) {
+      console.error('弹幕Hook初始化失败');
+      // 返回一个最小可行组件，避免整个组件崩溃
+      return {
+        danmuContainer: ref(null)
+      }
+    }
+    
     const danmuContainer = ref(null)
     let danmuInterval = null
     
@@ -64,7 +76,7 @@ export default {
     
     // 随机生成用户名
     const generateRandomName = () => {
-      const names = store.state.participants.map(p => p.name)
+      const names = activity.participants.value?.map(p => p.name) || []
       if (names.length === 0) {
         return '用户' + Math.floor(Math.random() * 1000)
       }
@@ -187,10 +199,12 @@ export default {
       danmu.style.pointerEvents = 'auto'
       danmu.addEventListener('click', () => {
         // 点击弹幕时立即关闭所有弹幕
-        store.commit('updateDanmuConfig', {
-          enabled: false,
-          frequency: store.state.activityConfig.danmu.frequency
-        });
+        if (danmuHook && danmuHook.updateDanmuConfig && danmuHook.danmuFrequency) {
+          danmuHook.updateDanmuConfig({
+            enabled: false,
+            frequency: danmuHook.danmuFrequency.value || 1500
+          });
+        }
         
         // 立即清除所有弹幕，不等待watch触发
         if (danmuContainer.value) {
@@ -384,8 +398,14 @@ export default {
         danmuInterval = null;
       }
       
+      // 判断hook是否已初始化
+      if (!danmuHook || !danmuHook.danmuConfig || !danmuHook.danmuConfig.value) {
+        console.error('弹幕Hook未正确初始化');
+        return;
+      }
+      
       // 获取配置
-      const danmuConfig = store.state.activityConfig.danmu || { enabled: true, frequency: 1500 };
+      const danmuConfig = danmuHook.danmuConfig.value || { enabled: true, frequency: 1500 };
       
       // 如果弹幕已禁用，则不启动
       if (!danmuConfig.enabled) {
@@ -407,7 +427,8 @@ export default {
       
       // 每指定时间发送一条弹幕，加上随机延迟
       danmuInterval = setInterval(() => {
-        if (store.state.activityConfig.danmu.enabled) {
+        // 再次检查hook状态，确保它在使用时仍然存在
+        if (danmuHook && danmuHook.isDanmuEnabled && danmuHook.isDanmuEnabled.value) {
           // 随机批量添加1-3条弹幕
           const count = Math.random() > 0.5 ? (Math.random() > 0.5 ? 3 : 2) : 1;
           
@@ -441,26 +462,43 @@ export default {
     }
     
     // 监听特殊弹幕队列的变化
-    watch(() => store.state.specialDanmu, (newDanmu, oldDanmu) => {
+    watch(() => {
+      // 添加空值检查
+      if (!danmuHook || !danmuHook.specialDanmuList) {
+        console.error('弹幕Hook未正确初始化，无法监听特殊弹幕队列');
+        return [];
+      }
+      return danmuHook.specialDanmuList.value;
+    }, (newDanmu, oldDanmu) => {
+      // 如果新旧值为空，不处理
+      if (!newDanmu || !oldDanmu) return;
+      
       // 如果有新的特殊弹幕
       if (newDanmu.length > oldDanmu.length) {
         // 获取最新添加的弹幕
-        const latestDanmu = newDanmu[newDanmu.length - 1]
+        const latestDanmu = newDanmu[newDanmu.length - 1];
         
         // 创建特殊弹幕 - 特殊弹幕优先显示，直接添加到队列头部
         danmuQueue.value.unshift({
           type: latestDanmu.type || 'highlight',
           userName: latestDanmu.userName,
           text: latestDanmu.text
-        })
+        });
         
         // 尝试立即显示
-        processQueue()
+        processQueue();
       }
-    }, { deep: true })
+    }, { deep: true });
     
     // 监听弹幕开关状态
-    watch(() => store.state.activityConfig.danmu.enabled, (isEnabled) => {
+    watch(() => {
+      // 添加空值检查
+      if (!danmuHook || !danmuHook.isDanmuEnabled) {
+        console.error('弹幕Hook未正确初始化，无法监听弹幕开关状态');
+        return false;
+      }
+      return danmuHook.isDanmuEnabled.value;
+    }, (isEnabled) => {
       if (isEnabled) {
         startDanmu();
       } else {
@@ -484,7 +522,7 @@ export default {
           danmuQueue.value = [];
         }
       }
-    }, { immediate: true })
+    }, { immediate: true });
     
     // 清除所有弹幕的函数
     const clearAllDanmu = () => {

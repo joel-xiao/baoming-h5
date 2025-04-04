@@ -53,7 +53,7 @@
 
 <script>
 import { ref, onMounted, onBeforeUnmount, onUnmounted } from 'vue'
-import { useStore } from 'vuex'
+import { useActivity, useUser, useRegistration, useSystem, useDanmu } from '../store/hooks'
 import Header from '../components/Header.vue'
 import CountdownTimer from '../components/CountdownTimer.vue'
 import ActivityStats from '../components/ActivityStats.vue'
@@ -84,7 +84,13 @@ export default {
     ScrollSync
   },
   setup() {
-    const store = useStore()
+    // 使用模块化的store hooks
+    const activity = useActivity()
+    const user = useUser()
+    const registration = useRegistration()
+    const system = useSystem()
+    const danmu = useDanmu()
+    
     const bgmRef = ref(null)
     const isFormValid = ref(true)
     const isFormVisible = ref(true)
@@ -146,14 +152,14 @@ export default {
     const handleRegistration = async () => {
       if (isFormValid.value) {
         try {
-          // 使用Vuex的action提交报名信息
-          const result = await store.dispatch('submitRegistration')
+          // 使用模块化的store action提交报名信息
+          const result = await registration.submitRegistration()
           
           if (result.success) {
             // 创建支付订单对象
             const paymentOrder = {
               orderNo: result.orderNo || '', 
-              amount: store.state.activityConfig.price
+              amount: activity.price.value
             }
             
             // 显示支付界面或处理支付参数
@@ -161,10 +167,6 @@ export default {
               console.log('准备调用支付接口:', result.paymentParams)
               // 这里应该调用微信支付SDK
             }
-            
-            // 创建弹幕
-            const danmuText = `${store.state.user.name}成功报名啦！`
-            store.dispatch('triggerDanmu', { text: danmuText, userName: store.state.user.name })
           } else {
             alert(result.message || '报名失败，请稍后重试')
           }
@@ -177,54 +179,33 @@ export default {
     
     // 加载数据函数
     const loadData = async () => {
-      console.log('执行loadData函数...');
+      console.log('执行loadData函数...')
       try {
-        // 首先刷新活动统计数据 - 最重要的数据
-        console.log('刷新活动统计数据...');
-        await store.dispatch('loadActivityStats');
-        console.log('活动统计数据刷新完成:', store.state.activityStats);
-
-        // 然后加载参与者数据
-        console.log('加载参与者数据...');
-        await store.dispatch('loadParticipants');
-        console.log('参与者数据加载完成，数量:', store.state.participants.length);
-
-        // 最后加载订单数据
-        console.log('加载订单数据...');
-        await store.dispatch('loadOrders');
-        console.log('订单数据加载完成，数量:', store.state.orders.length);
+        // 并行请求数据提高效率
+        console.log('并行加载所有数据...')
+        const [statsPromise, participantsPromise, ordersPromise] = [
+          activity.loadStats(),
+          registration.loadParticipants(),
+          registration.loadOrders()
+        ]
+        
+        // 使用Promise.all并行等待所有请求完成
+        await Promise.all([statsPromise, participantsPromise, ordersPromise])
+        
+        console.log('活动统计数据刷新完成:', activity.stats.value)
+        console.log('参与者数据加载完成，数量:', activity.participants.value?.length)
+        console.log('订单数据加载完成，数量:', activity.orders.value?.length)
 
         // 检查活动是否已结束
-        checkActivityEnd();
-        console.log('数据加载全部完成');
+        activity.checkActivityEnd()
+        console.log('数据加载全部完成')
       } catch (error) {
-        console.error('数据加载失败:', error);
+        console.error('数据加载失败:', error)
         // 显示友好错误提示
-        store.commit('setSystemError', {
+        system.setError({
           show: true,
           message: '数据加载失败，请刷新页面重试'
-        });
-      }
-    }
-    
-    // 检查活动是否已结束
-    const checkActivityEnd = () => {
-      console.log('检查活动是否已结束...');
-      try {
-        const endTimeStr = store.state.activityConfig.endTime;
-        const endTime = new Date(endTimeStr);
-        const now = new Date();
-        const isEnded = now > endTime;
-        
-        if (isEnded) {
-          console.log('活动已结束');
-          store.commit('setActivityEndedStatus', true);
-        } else {
-          console.log('活动进行中，结束时间:', endTimeStr);
-          store.commit('setActivityEndedStatus', false);
-        }
-      } catch (error) {
-        console.error('检查活动结束状态出错:', error);
+        })
       }
     }
     
@@ -248,71 +229,43 @@ export default {
           console.log('用户交互后取消静音')
         }
       }
-      // 只监听一次交互
-      document.removeEventListener('click', handleUserInteraction)
-      document.removeEventListener('touchstart', handleUserInteraction)
     }
     
-    document.addEventListener('click', handleUserInteraction)
-    document.addEventListener('touchstart', handleUserInteraction)
+    // 在组件挂载时
+    onMounted(() => {
+      console.log('HomeView组件挂载...')
+      
+      // 尝试播放背景音乐
+      playBackgroundMusic()
+      
+      // 加载页面数据
+      loadData()
+
+      // 每隔60秒自动刷新数据
+      refreshInterval.value = setInterval(() => {
+        console.log('定时刷新数据...')
+        loadData()
+      }, 60000)
+
+      // 添加用户交互监听
+      document.addEventListener('click', handleUserInteraction)
+      document.addEventListener('touchstart', handleUserInteraction)
+    })
     
-    // 显示音乐播放提示
-    setTimeout(() => {
-      // 创建提示元素
-      const tipElement = document.createElement('div')
-      tipElement.className = 'music-tip'
-      tipElement.innerHTML = '点击页面任意位置即可播放背景音乐'
-      document.body.appendChild(tipElement)
-      
-      // 3秒后自动消失
-      setTimeout(() => {
-        tipElement.classList.add('fade-out')
-        // 动画结束后移除元素
-        setTimeout(() => {
-          if (document.body.contains(tipElement)) {
-            document.body.removeChild(tipElement)
-          }
-        }, 1000)
-      }, 3000)
-    }, 1000)
-
-    onMounted(async () => {
-      console.log('HomeView组件已挂载');
-      
-      // 统一通过loadData函数加载所有数据，避免重复API调用
-      console.log('开始加载活动数据...');
-      await loadData();
-      
-      // 启动定时刷新 - 适当延长刷新间隔
-      refreshInterval.value = setInterval(async () => {
-        console.log('定时刷新数据...');
-        await loadData();
-      }, 30000); // 30秒刷新一次
-    })
-
-    // 组件卸载时清理资源
-    onUnmounted(() => {
-      console.log('HomeView组件卸载，清理定时刷新...');
-      if (refreshInterval.value) {
-        clearInterval(refreshInterval.value);
-        refreshInterval.value = null;
-      }
-    })
-
+    // 在组件卸载前清除定时器和事件监听
     onBeforeUnmount(() => {
-      // 停止音乐播放
-      if (bgmRef.value) {
-        bgmRef.value.pause()
-        bgmRef.value.currentTime = 0
+      if (refreshInterval.value) {
+        clearInterval(refreshInterval.value)
+        refreshInterval.value = null
       }
+      document.removeEventListener('click', handleUserInteraction)
+      document.removeEventListener('touchstart', handleUserInteraction)
     })
-
+    
     return {
       bgmRef,
       isFormValid,
-      isFormVisible,
-      isPaymentVisible,
-      handleRegistration
+      isFormVisible
     }
   }
 }

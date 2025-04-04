@@ -49,12 +49,14 @@
 
 <script>
 import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
-import { useStore } from 'vuex'
+import { useActivity } from '../store/hooks'
 
 export default {
   name: 'CustomerService',
   setup() {
-    const store = useStore()
+    // 使用活动相关hooks
+    const activity = useActivity()
+    
     const isModalVisible = ref(false)
     const isDragging = ref(false)
     const startY = ref(0)
@@ -199,7 +201,14 @@ export default {
       window.removeEventListener('resize', updatePosition)
     })
     
-    const price = computed(() => store.state.activityConfig.price)
+    // 使用activity.price获取价格，并提供默认值
+    const price = computed(() => {
+      // 确保activity.price存在，如果不存在则返回默认值99
+      if (!activity || !activity.price || activity.price.value === undefined) {
+        return 99;
+      }
+      return activity.price.value;
+    })
     
     const showServiceModal = () => {
       if (!isDragging.value) {

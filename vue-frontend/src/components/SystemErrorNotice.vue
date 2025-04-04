@@ -1,15 +1,15 @@
 <template>
-  <div class="system-error-notice" v-if="systemError.show">
+  <div class="system-error-notice" v-if="hasError">
     <div class="error-content">
       <div class="error-icon">
         <span>!</span>
       </div>
       <div class="error-message">
-        {{ systemError.message }}
-        <div class="error-hint" v-if="systemError.message.includes('网络时间')">
+        {{ errorMessage }}
+        <div class="error-hint" v-if="errorMessage.includes('网络时间')">
           请检查网络连接后刷新页面重试。
         </div>
-        <div class="error-hint" v-else-if="systemError.message.includes('活动已结束')">
+        <div class="error-hint" v-else-if="errorMessage.includes('活动已结束')">
           报名通道已关闭，感谢您的关注。
         </div>
       </div>
@@ -19,22 +19,21 @@
 </template>
 
 <script>
-import { computed } from 'vue'
-import { useStore } from 'vuex'
+import { useSystem } from '../store/hooks'
 
 export default {
   name: 'SystemErrorNotice',
   setup() {
-    const store = useStore()
-    
-    const systemError = computed(() => store.state.systemError)
+    // 使用系统相关的hooks
+    const system = useSystem()
     
     const closeError = () => {
-      store.commit('setSystemError', { show: false, message: '' })
+      system.clearError()
     }
     
     return {
-      systemError,
+      hasError: system.hasError,
+      errorMessage: system.errorMessage,
       closeError
     }
   }
