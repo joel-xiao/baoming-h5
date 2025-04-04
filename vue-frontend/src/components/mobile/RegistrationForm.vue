@@ -51,6 +51,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useActivity, useUser, useRegistration, useDanmu } from '@/store/hooks'
+import toast from '../../utils/toast'
 
 export default {
   name: 'RegistrationForm',
@@ -110,22 +111,22 @@ export default {
       }
       
       if (!name.value.trim()) {
-        alert('请输入姓名')
+        toast.warning('请输入姓名')
         return false
       }
       
       if (!phone.value.trim()) {
-        alert('请输入手机号')
+        toast.warning('请输入手机号')
         return false
       }
       
       if (!/^1\d{10}$/.test(phone.value.trim())) {
-        alert('请输入正确的手机号')
+        toast.warning('请输入正确的手机号')
         return false
       }
       
       if (userType.value === 'team_member' && !teamCode.value.trim()) {
-        alert('请输入邀请码')
+        toast.warning('请输入邀请码')
         return false
       }
       
@@ -169,17 +170,17 @@ export default {
                   });
                 },
                 fail: function(res) {
-                  alert('支付失败，请重试');
+                  toast.error('支付失败，请重试');
                   isSubmitting.value = false;
                 },
                 cancel: function(res) {
-                  alert('支付已取消');
+                  toast.warning('支付已取消');
                   isSubmitting.value = false;
                 }
               });
             } else {
               // 非微信环境，显示错误
-              alert('请在微信环境中完成支付');
+              toast.warning('请在微信环境中完成支付');
               isSubmitting.value = false;
             }
           } else if (result.orderNo) {
@@ -191,15 +192,15 @@ export default {
             isSubmitting.value = false;
           } else {
             // 没有订单号
-            alert('创建订单失败，请稍后再试');
+            toast.error('创建订单失败，请稍后再试');
             isSubmitting.value = false;
           }
         } else {
-          alert(result.message || '提交失败，请稍后重试');
+          toast.error(result.message || '提交失败，请稍后重试');
           isSubmitting.value = false;
         }
       } catch (error) {
-        alert(error.message || '提交失败，请稍后重试');
+        toast.error(error.message || '提交失败，请稍后重试');
         isSubmitting.value = false;
       }
     }

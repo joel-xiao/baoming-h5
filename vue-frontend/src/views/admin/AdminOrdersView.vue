@@ -116,6 +116,7 @@
 import { ref, reactive, onMounted, watch } from 'vue'
 import { adminApi } from '@api'
 import { usePagination, useApi } from '@api/hooks/useApi'
+import toast from '../../utils/toast'
 
 export default {
   name: 'AdminOrdersView',
@@ -178,7 +179,7 @@ export default {
         }
       } catch (error) {
         console.error('导出数据失败:', error);
-        alert('导出数据失败，请重试');
+        toast.error('导出数据失败，请重试');
       } finally {
         isExporting.value = false;
       }

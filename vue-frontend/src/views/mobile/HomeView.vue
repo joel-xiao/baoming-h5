@@ -66,6 +66,7 @@ import DanmuContainer from '@mobile/DanmuContainer.vue'
 import DanmuToggle from '@mobile/DanmuToggle.vue'
 import DanmuDebug from '@mobile/DanmuDebug.vue'
 import ScrollSync from '@mobile/ScrollSync.vue'
+import toast from '../../utils/toast'
 
 export default {
   name: 'HomeView',
@@ -161,11 +162,11 @@ export default {
               // 这里应该调用微信支付SDK
             }
           } else {
-            alert(result.message || '报名失败，请稍后重试')
+            toast.error(result.message || '报名失败，请稍后重试')
           }
         } catch (error) {
           console.error('报名提交失败:', error)
-          alert(error.message || '报名失败，请稍后重试')
+          toast.error(error.message || '报名失败，请稍后重试')
         }
       }
     }

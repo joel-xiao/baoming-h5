@@ -1,17 +1,20 @@
 <template>
   <div>
     <SystemErrorNotice />
+    <ApiErrorHandler />
     <router-view/>
   </div>
 </template>
 
 <script>
 import SystemErrorNotice from '@mobile/SystemErrorNotice.vue'
+import ApiErrorHandler from './components/ApiErrorHandler.vue'
 
 export default {
   name: 'App',
   components: {
-    SystemErrorNotice
+    SystemErrorNotice,
+    ApiErrorHandler
   }
 }
 </script>

@@ -61,6 +61,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { paymentApi } from '@api'
 import { useApi } from '@api/hooks/useApi'
+import toast from '../../utils/toast'
 
 export default {
   name: 'SuccessView',
@@ -83,7 +84,7 @@ export default {
       {
         onError: (err) => {
           console.error('获取报名信息失败:', err)
-          alert('获取订单信息失败，请稍后再试')
+          toast.error('获取订单信息失败，请稍后再试')
           router.push('/')
         }
       }
@@ -126,7 +127,7 @@ export default {
         }, 3000)
       } else if (newValue && newValue.paymentStatus !== 'success') {
         // 支付失败或出错，返回首页
-        alert('支付未成功，请重新报名')
+        toast.error('支付未成功，请重新报名')
         router.push('/')
       }
     })
@@ -176,7 +177,7 @@ export default {
           })
         })
       } else {
-        alert('请在微信客户端中分享')
+        toast.warning('请在微信客户端中分享')
       }
     }
     
