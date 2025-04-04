@@ -4,6 +4,7 @@ const Registration = require('../../core/models/Registration');
 const logger = require('../../core/utils/Logger');
 const { sendEmail } = require('../../core/utils/EmailService');
 const appConfig = require('../../config/app');
+const IDGenerator = require('../../core/utils/IDGenerator');
 
 /**
  * 获取近期注册记录
@@ -54,16 +55,6 @@ const createRegistration = async (req, res) => {
     // 获取Registration模型
     const registrationModel = ModelFactory.getModel(Registration);
     
-    // 检查团队名称是否已存在
-    const existingTeam = await registrationModel.findOne({ teamName });
-    
-    if (existingTeam) {
-      return res.status(400).json({
-        success: false,
-        message: '团队名称已存在'
-      });
-    }
-    
     // 检查领队手机号是否已存在
     const existingLeader = await registrationModel.findOne({ 'leader.phone': leader.phone });
     
@@ -74,12 +65,16 @@ const createRegistration = async (req, res) => {
       });
     }
     
+    // 生成唯一的订单号
+    const orderNo = IDGenerator.generateRegistrationOrderId();
+    
     // 创建注册记录
     const registration = await registrationModel.create({
       teamName,
       leader,
       members,
       additionalInfo,
+      orderNo,
       status: '待审核',
       createdAt: new Date()
     });
@@ -368,16 +363,6 @@ const createTeamLeader = async (req, res) => {
     // 获取Registration模型
     const registrationModel = ModelFactory.getModel(Registration);
     
-    // 检查团队名称是否已存在
-    const existingTeam = await registrationModel.findOne({ teamName });
-    
-    if (existingTeam) {
-      return res.status(400).json({
-        success: false,
-        message: '团队名称已存在'
-      });
-    }
-    
     // 检查领队手机号是否已存在
     const existingLeader = await registrationModel.findOne({ 'leader.phone': leader.phone });
     
@@ -389,7 +374,10 @@ const createTeamLeader = async (req, res) => {
     }
     
     // 生成团队邀请码
-    const inviteCode = crypto.randomBytes(3).toString('hex').toUpperCase();
+    const inviteCode = IDGenerator.generateInviteCode();
+    
+    // 生成唯一的订单号
+    const orderNo = IDGenerator.generateTeamOrderId();
     
     // 创建预注册记录
     const registration = await registrationModel.create({
@@ -402,6 +390,7 @@ const createTeamLeader = async (req, res) => {
       leader,
       members: [],
       inviteCode,
+      orderNo,
       status: REGISTRATION_STATUS.PENDING, // 使用正确的枚举值
       createdAt: new Date()
     });

@@ -4,8 +4,9 @@
   "description": "团队报名系统服务端",
   "main": "src/app.js",
   "scripts": {
-    "start": "node src/app.js",
-    "dev": "nodemon src/app.js",
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "fix-database": "node src/scripts/fixDatabaseIssues.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

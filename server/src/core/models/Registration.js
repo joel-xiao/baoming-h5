@@ -46,6 +46,10 @@ const registrationFields = {
     required: true,
     length: 20
   },
+  idCard: {
+    type: 'string',
+    length: 18
+  },
   openid: {
     type: 'string',
     length: 50
@@ -70,6 +74,13 @@ const registrationFields = {
   inviteCode: {
     type: 'string',
     length: 10
+  },
+  
+  // 订单号
+  orderNo: {
+    type: 'string',
+    length: 30,
+    unique: true
   },
   
   // 审核状态
