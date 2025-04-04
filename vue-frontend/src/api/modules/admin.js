@@ -2,7 +2,6 @@
  * 管理员相关API
  */
 import apiInstance from '../core/axios';
-import { handleApiError } from '../core/errorHandler';
 import { withCache } from '../core/cache';
 
 /**
@@ -12,11 +11,7 @@ import { withCache } from '../core/cache';
  * @returns {Promise<Object>} 统计数据
  */
 export const getDashboard = async (params = {}) => {
-  try {
-    return await apiInstance.get('/admin/dashboard', { params });
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.get('/admin/dashboard', { params });
 };
 
 /**
@@ -32,11 +27,7 @@ export const getDashboard = async (params = {}) => {
  * @returns {Promise<Object>} 报名记录列表
  */
 export const getRegistrations = async (params = {}) => {
-  try {
-    return await apiInstance.get('/admin/registrations', { params });
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.get('/admin/registrations', { params });
 };
 
 /**
@@ -50,29 +41,22 @@ export const getRegistrations = async (params = {}) => {
  * @returns {Promise<Blob>} 导出文件的Blob对象
  */
 export const exportRegistrations = async (params = {}) => {
-  try {
-    return await apiInstance.get('/admin/export/registrations', { 
-      params,
-      responseType: 'blob' // 用于下载文件
-    });
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.get('/admin/export/registrations', { 
+    params,
+    responseType: 'blob' // 用于下载文件
+  });
 };
 
 /**
  * 管理员登录
- * @param {Object} data - 登录数据
+ * @param {Object} data - 登录信息
  * @param {string} data.username - 用户名
  * @param {string} data.password - 密码
  * @returns {Promise<Object>} 登录结果
+ * @access public - 公开接口，不需要鉴权
  */
 export const login = async (data) => {
-  try {
-    return await apiInstance.post('/auth/login', data);
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.post('/admin/login', data);
 };
 
 /**
@@ -84,11 +68,7 @@ export const login = async (data) => {
  * @returns {Promise<Object>} 审核结果
  */
 export const reviewRegistration = async (id, data) => {
-  try {
-    return await apiInstance.put(`/registration/${id}/review`, data);
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.put(`/registration/${id}/review`, data);
 };
 
 /**
@@ -96,11 +76,7 @@ export const reviewRegistration = async (id, data) => {
  * @returns {Promise<Object>} 系统配置
  */
 export const getConfig = async () => {
-  try {
-    return await apiInstance.get('/admin/config');
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.get('/admin/config');
 };
 
 /**
@@ -109,11 +85,7 @@ export const getConfig = async () => {
  * @returns {Promise<Object>} 更新结果
  */
 export const updateConfig = async (data) => {
-  try {
-    return await apiInstance.put('/admin/config', data);
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.put('/admin/config', data);
 };
 
 /**
@@ -127,11 +99,7 @@ export const updateConfig = async (data) => {
  * @returns {Promise<Object>} 用户列表
  */
 export const getUsers = async (params = {}) => {
-  try {
-    return await apiInstance.get('/admin/users', { params });
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.get('/admin/users', { params });
 };
 
 /**
@@ -140,11 +108,7 @@ export const getUsers = async (params = {}) => {
  * @returns {Promise<Object>} 创建结果
  */
 export const createUser = async (data) => {
-  try {
-    return await apiInstance.post('/admin/users', data);
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.post('/admin/users', data);
 };
 
 /**
@@ -154,11 +118,7 @@ export const createUser = async (data) => {
  * @returns {Promise<Object>} 更新结果
  */
 export const updateUser = async (id, data) => {
-  try {
-    return await apiInstance.put(`/admin/users/${id}`, data);
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.put(`/admin/users/${id}`, data);
 };
 
 /**
@@ -167,11 +127,7 @@ export const updateUser = async (id, data) => {
  * @returns {Promise<Object>} 删除结果
  */
 export const deleteUser = async (id) => {
-  try {
-    return await apiInstance.delete(`/admin/users/${id}`);
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.delete(`/admin/users/${id}`);
 };
 
 /**
@@ -182,11 +138,7 @@ export const deleteUser = async (id) => {
  * @returns {Promise<Object>} 重置结果
  */
 export const resetUserPassword = async (id, data) => {
-  try {
-    return await apiInstance.post(`/admin/users/${id}/reset-password`, data);
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.post(`/admin/users/${id}/reset-password`, data);
 };
 
 /**
@@ -195,11 +147,7 @@ export const resetUserPassword = async (id, data) => {
  * @returns {Promise<Object>} 日志列表
  */
 export const getLogs = async (params = {}) => {
-  try {
-    return await apiInstance.get('/admin/logs', { params });
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.get('/admin/logs', { params });
 };
 
 // 使用缓存优化获取统计数据

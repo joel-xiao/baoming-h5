@@ -2,7 +2,6 @@
  * 注册相关API
  */
 import apiInstance from '../core/axios';
-import { handleApiError } from '../core/errorHandler';
 import { withCache } from '../core/cache';
 
 /**
@@ -11,11 +10,7 @@ import { withCache } from '../core/cache';
  * @access public - 公开接口，不需要鉴权
  */
 export const getRegistrations = async () => {
-  try {
-    return await apiInstance.get('/registration');
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.get('/registration');
 };
 
 /**
@@ -32,11 +27,7 @@ export const getRegistrations = async () => {
  * @access public - 公开接口，不需要鉴权
  */
 export const createTeamLeader = async (data) => {
-  try {
-    return await apiInstance.post('/registration/leader', data);
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.post('/registration/leader', data);
 };
 
 /**
@@ -52,11 +43,7 @@ export const createTeamLeader = async (data) => {
  * @access public - 公开接口，不需要鉴权
  */
 export const joinTeam = async (data) => {
-  try {
-    return await apiInstance.post('/registration/join', data);
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.post('/registration/join', data);
 };
 
 /**
@@ -66,11 +53,7 @@ export const joinTeam = async (data) => {
  * @access public - 公开接口，不需要鉴权
  */
 export const getTeamMembers = async (teamId) => {
-  try {
-    return await apiInstance.get(`/registration/team/${teamId}`);
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.get(`/registration/team/${teamId}`);
 };
 
 /**
@@ -80,11 +63,7 @@ export const getTeamMembers = async (teamId) => {
  * @access public - 公开接口，不需要鉴权
  */
 export const getRegistrationDetail = async (id) => {
-  try {
-    return await apiInstance.get(`/registration/${id}`);
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.get(`/registration/${id}`);
 };
 
 // 使用缓存优化获取函数

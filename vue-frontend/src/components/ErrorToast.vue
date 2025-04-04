@@ -1,18 +1,27 @@
 <template>
-  <div class="api-error-handler">
-    <transition name="api-error-fade">
+  <div class="error-toast-container">
+    <!-- 统一错误提示框 -->
+    <transition name="error-toast-fade">
       <div 
         v-if="showError" 
-        :class="['api-error-toast', `api-error-toast--${errorType}`]"
+        :class="['error-toast', `error-toast--${errorType}`]"
       >
-        <span class="api-error-toast__icon">
+        <span class="error-toast__icon">
           <i class="fas" :class="errorIcon"></i>
         </span>
-        <div class="api-error-toast__content">
-          <div class="api-error-toast__title">{{ errorTitle }}</div>
-          <div class="api-error-toast__message">{{ errorMessage }}</div>
+        <div class="error-toast__content">
+          <div class="error-toast__title">{{ errorTitle }}</div>
+          <div class="error-toast__message">
+            {{ errorMessage }}
+            <div class="error-hint" v-if="errorMessage.includes('服务器时间')">
+              请检查网络连接后刷新页面重试。
+            </div>
+            <div class="error-hint" v-else-if="errorMessage.includes('活动已结束')">
+              报名通道已关闭，感谢您的关注。
+            </div>
+          </div>
         </div>
-        <button class="api-error-toast__close" @click="hideError">×</button>
+        <button class="error-toast__close" @click="hideError">×</button>
       </div>
     </transition>
   </div>
@@ -22,7 +31,7 @@
 import { HTTP_STATUS } from '../api/core/errorHandler';
 
 export default {
-  name: 'ApiErrorHandler',
+  name: 'ErrorToast',
   
   data() {
     return {
@@ -148,8 +157,8 @@ export default {
       // 显示错误提示
       this.showError = true;
       
-      // 发送自定义事件，通知其他组件（如Toast）API错误正在显示
-      const apiShowEvent = new CustomEvent('api-toast-show', {
+      // 发送自定义事件，通知其他组件（如Toast）错误提示正在显示
+      const apiShowEvent = new CustomEvent('error-toast-show', {
         detail: { showing: true }
       });
       window.dispatchEvent(apiShowEvent);
@@ -159,7 +168,7 @@ export default {
         clearTimeout(this.timeoutId);
       }
       
-      // 5秒后自动隐藏
+      // 设置5秒后自动隐藏
       this.timeoutId = setTimeout(() => {
         this.hideError();
       }, 5000);
@@ -168,8 +177,8 @@ export default {
     hideError() {
       this.showError = false;
       
-      // 发送自定义事件，通知其他组件API错误已隐藏
-      const apiHideEvent = new CustomEvent('api-toast-hide', {
+      // 发送自定义事件，通知其他组件错误提示已隐藏
+      const apiHideEvent = new CustomEvent('error-toast-hide', {
         detail: { showing: false }
       });
       window.dispatchEvent(apiHideEvent);
@@ -178,204 +187,230 @@ export default {
 };
 </script>
 
-<style scoped>
-.api-error-toast {
+<style>
+.error-toast-container {
+  pointer-events: none;
   position: fixed;
-  top: 20px;
-  right: 20px;
-  min-width: 320px;
-  max-width: 450px;
-  padding: 16px;
-  border-radius: 12px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 0;
+  z-index: 9999;
+}
+
+/* 统一错误提示框样式 */
+.error-toast {
+  position: fixed !important;
+  top: 40px !important;
+  right: 20px !important;
+  left: auto !important; /* 确保不会被左侧定位覆盖 */
+  width: auto;
+  min-width: 180px;
+  max-width: 300px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: flex-start;
   z-index: 9999;
   background-color: #fff;
   overflow: hidden;
   position: relative;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.03);
+  pointer-events: auto;
+  transform: translateZ(0);
 }
 
-.api-error-toast::before {
+.error-toast::before {
   content: '';
   position: absolute;
   left: 0;
   top: 0;
-  bottom: 0;
+  height: 100%;
   width: 4px;
 }
 
-.api-error-toast--error {
+.error-hint {
+  font-size: 13px;
+  opacity: 0.8;
+  margin-top: 4px;
+  font-weight: 400;
+}
+
+/* 错误类型样式 */
+.error-toast--error {
   background-color: #fef5f5;
 }
-
-.api-error-toast--error .api-error-toast__title {
-  color: #b83a38;
+.error-toast--error .error-toast__title { color: #b83a38; }
+.error-toast--error::before { background-color: #e74c3c; }
+.error-toast--error .error-toast__icon {
+  color: #e74c3c;
+  background-color: rgba(231, 76, 60, 0.08);
 }
 
-.api-error-toast--error::before {
-  background-color: #e74c3c;
-}
-
-.api-error-toast--warning {
+.error-toast--warning {
   background-color: #fef9ef;
 }
-
-.api-error-toast--warning .api-error-toast__title {
-  color: #af7010;
+.error-toast--warning .error-toast__title { color: #af7010; }
+.error-toast--warning::before { background-color: #f39c12; }
+.error-toast--warning .error-toast__icon {
+  color: #f39c12;
+  background-color: rgba(243, 156, 18, 0.08);
 }
 
-.api-error-toast--warning::before {
-  background-color: #f39c12;
-}
-
-.api-error-toast--auth {
+.error-toast--auth {
   background-color: #f5f9ff;
 }
-
-.api-error-toast--auth .api-error-toast__title {
-  color: #3273dc;
+.error-toast--auth .error-toast__title { color: #3273dc; }
+.error-toast--auth::before { background-color: #3498db; }
+.error-toast--auth .error-toast__icon {
+  color: #3498db;
+  background-color: rgba(52, 152, 219, 0.08);
 }
 
-.api-error-toast--auth::before {
-  background-color: #3498db;
-}
-
-.api-error-toast--network {
+.error-toast--network {
   background-color: #f9f4fe;
 }
-
-.api-error-toast--network .api-error-toast__title {
-  color: #8e44ad;
+.error-toast--network .error-toast__title { color: #8e44ad; }
+.error-toast--network::before { background-color: #9b59b6; }
+.error-toast--network .error-toast__icon {
+  color: #9b59b6;
+  background-color: rgba(155, 89, 182, 0.08);
 }
 
-.api-error-toast--network::before {
-  background-color: #9b59b6;
-}
-
-.api-error-toast--center {
+.error-toast--center {
   top: 50%;
-  right: auto;
   left: 50%;
   transform: translate(-50%, -50%);
 }
 
-.api-error-toast__icon {
+.error-toast__icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 14px;
-  font-size: 20px;
-  width: 36px;
-  height: 36px;
+  margin-right: 8px;
+  font-size: 14px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background-color: rgba(0, 0, 0, 0.05);
   flex-shrink: 0;
 }
 
-.api-error-toast--error .api-error-toast__icon {
-  color: #e74c3c;
-  background-color: rgba(231, 76, 60, 0.1);
-}
-
-.api-error-toast--warning .api-error-toast__icon {
-  color: #f39c12;
-  background-color: rgba(243, 156, 18, 0.1);
-}
-
-.api-error-toast--auth .api-error-toast__icon {
-  color: #3498db;
-  background-color: rgba(52, 152, 219, 0.1);
-}
-
-.api-error-toast--network .api-error-toast__icon {
-  color: #9b59b6;
-  background-color: rgba(155, 89, 182, 0.1);
-}
-
-.api-error-toast__content {
+.error-toast__content {
   flex: 1;
   min-width: 0;
 }
 
-.api-error-toast__title {
-  font-size: 16px;
+.error-toast__title {
+  font-size: 13px;
   font-weight: 600;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
   color: #333;
 }
 
-.api-error-toast__message {
-  font-size: 14px;
-  line-height: 1.5;
+.error-toast__message {
+  font-size: 12px;
+  line-height: 1.3;
   color: #666;
   word-break: break-word;
 }
 
-.api-error-toast__close {
+.error-toast__close {
   background: none;
   border: none;
-  font-size: 22px;
+  font-size: 18px;
   color: #999;
   cursor: pointer;
-  margin-left: 10px;
+  margin-left: 8px;
   padding: 0 6px;
   transition: color 0.2s;
-  margin-top: -5px;
+  margin-top: -2px;
   line-height: 1;
-  height: 28px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.7;
+  opacity: 1;
 }
 
-.api-error-toast__close:hover {
+.error-toast__close:hover {
   color: #333;
   opacity: 1;
 }
 
 /* 动画效果 */
-.api-error-fade-enter-active,
-.api-error-fade-leave-active {
-  transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+.error-toast-fade-enter-active {
+  animation: slide-in-right 0.35s ease-out forwards;
 }
 
-.api-error-fade-enter-from {
-  transform: translateX(30px);
-  opacity: 0;
+.error-toast-fade-leave-active {
+  animation: slide-out-right 0.35s ease-in forwards;
 }
 
-.api-error-fade-leave-to {
-  transform: translateY(-30px);
-  opacity: 0;
+@keyframes slide-in-right {
+  0% {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-out-right {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(50px);
+  }
 }
 
 @media (max-width: 768px) {
-  .api-error-toast {
-    top: 10px;
-    right: 10px;
-    left: 10px;
-    width: auto;
-    max-width: none;
-    padding: 14px;
+  .error-toast {
+    top: 10px !important;
+    right: 10px !important;
+    left: auto !important;
+    min-width: 0;
+    max-width: 260px;
+    width: calc(100% - 20px);
+    padding: 7px 9px;
+    border-radius: 6px;
   }
   
-  .api-error-toast__icon {
-    width: 32px;
-    height: 32px;
-    font-size: 18px;
-    margin-right: 12px;
+  .error-toast__icon {
+    width: 22px;
+    height: 22px;
+    font-size: 12px;
+    margin-right: 7px;
   }
   
-  .api-error-toast__title {
-    font-size: 15px;
-    margin-bottom: 4px;
+  .error-toast__title {
+    font-size: 12px;
+    margin-bottom: 1px;
   }
   
-  .api-error-toast__message {
-    font-size: 13px;
+  .error-toast__message {
+    font-size: 11px;
+    line-height: 1.3;
+  }
+
+  .error-hint {
+    font-size: 11px;
+    margin-top: 3px;
+  }
+
+  .error-toast__close {
+    font-size: 14px;
+    margin-left: 4px;
+    padding: 0 4px;
+    height: 18px;
   }
 }
 </style> 

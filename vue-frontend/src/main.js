@@ -4,6 +4,9 @@ import router from './router'
 import store from './store'
 import PixelScroll from '@mobile/PixelScroll.vue'
 
+// 导入FontAwesome
+import '@fortawesome/fontawesome-free/css/all.css'
+
 const app = createApp(App)
 
 // 全局注册PixelScroll组件

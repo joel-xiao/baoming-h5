@@ -4,7 +4,7 @@
 import axios from 'axios';
 import config from '../../config';
 import errorHandler from './errorHandler';
-import { error as toastError } from '../../utils/toast';
+import errorNotify from '../../utils/errorNotify';
 import { 
   HTTP_STATUS, 
   getStatusMessage, 
@@ -23,31 +23,12 @@ const apiInstance = axios.create({
 });
 
 /**
- * 创建错误事件并分发
- * @param {string} eventType - 事件类型
- * @param {Object} detail - 事件详情对象
- * @param {string} message - 错误消息
- */
-const createAndDispatchEvent = (eventType, detail, message) => {
-  // 创建自定义事件
-  const event = new CustomEvent(eventType, { detail });
-  
-  // 由于自定义的ApiErrorHandler会显示错误，我们不再使用Toast显示错误信息
-  // toastError(message);
-  
-  // 派发事件
-  window.dispatchEvent(event);
-};
-
-/**
  * 处理错误并创建相应的事件
  * @param {Object} error - 错误对象
  * @returns {Promise} 被拒绝的Promise
  */
 const handleError = (error) => {
   let errorResponse;
-  let eventType = 'api-error';
-  let eventDetail;
   
   // 处理不同类型的错误
   if (error.response) {
@@ -57,51 +38,42 @@ const handleError = (error) => {
     // 优先使用服务器返回的错误消息，如果没有则使用预定义消息
     const errorMessage = (data && data.message) || getStatusMessage(status);
     
-    eventDetail = {
-      status,
-      message: errorMessage
-    };
+    // 处理错误显示细节
+    let errorType = (data && data.errorType) || '';
+    let errors = (data && data.errors) || null;
     
-    // 如果服务器返回了错误类型，则使用服务器返回的错误类型
-    if (data && data.errorType) {
-      eventDetail.errorType = data.errorType;
-    }
-    
-    // 根据状态码处理
+    // 根据状态码设置错误类型
     switch (status) {
       case HTTP_STATUS.BAD_REQUEST: // 400: 请求参数错误
-        eventDetail.errors = data.errors;
-        eventDetail.errorType = eventDetail.errorType || 'warning';
+        errorType = errorType || 'warning';
+        errorNotify.showWarning(errorMessage);
         break;
         
       case HTTP_STATUS.UNAUTHORIZED: // 401: 认证失败
         // 清除用户凭证
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
-        eventType = 'auth-error';
-        eventDetail.errorType = eventDetail.errorType || 'auth';
+        errorType = errorType || 'auth';
+        errorNotify.showAuthError(errorMessage);
         break;
         
       case HTTP_STATUS.FORBIDDEN: // 403: 权限不足
-        eventDetail.errorType = eventDetail.errorType || 'warning';
-        break;
-        
       case HTTP_STATUS.NOT_FOUND: // 404: 资源不存在
-        eventDetail.errorType = eventDetail.errorType || 'warning';
+        errorType = errorType || 'warning';
+        errorNotify.showWarning(errorMessage);
         break;
         
       case HTTP_STATUS.INTERNAL_ERROR: // 500: 服务器内部错误
-        eventDetail.errorType = eventDetail.errorType || 'error';
-        break;
-        
       default: // 其他错误
-        eventDetail.errorType = eventDetail.errorType || 'error';
-        eventDetail.centerPosition = data.centerPosition || false;
+        errorType = errorType || 'error';
+        errorNotify.showError({
+          message: errorMessage,
+          status,
+          errorType,
+          errors
+        });
         break;
     }
-    
-    // 创建并派发事件
-    createAndDispatchEvent(eventType, eventDetail, errorMessage);
     
     // 统一处理并返回格式化的错误对象
     errorResponse = errorHandler.handleApiError(error);
@@ -113,23 +85,12 @@ const handleError = (error) => {
     if (config.features.offlineStorage) {
       // 实现离线存储逻辑
     }
-    
-    // 创建并派发网络错误事件
-    createAndDispatchEvent('api-error', {
-      status: 0,
-      message: errorResponse.message,
-      errorType: 'network'
-    }, errorResponse.message);
+    errorNotify.showNetworkError(errorResponse.message);
   } else {
     // 请求设置触发的错误
     errorResponse = errorHandler.handleRequestError(error);
     
-    // 创建并派发请求错误事件
-    createAndDispatchEvent('api-error', {
-      status: 0,
-      message: errorResponse.message,
-      errorType: 'error'
-    }, errorResponse.message);
+    errorNotify.showError(errorResponse.message);
   }
   
   return Promise.reject(errorResponse);

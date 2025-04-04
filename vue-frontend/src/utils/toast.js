@@ -1,11 +1,24 @@
 import { createApp } from 'vue';
 import MessageToastComponent from '../components/Toast.vue';
 
-// 创建Vue 3实例
-const app = createApp(MessageToastComponent);
-const mountEl = document.createElement('div');
-document.body.appendChild(mountEl);
-const instance = app.mount(mountEl);
+// 懒加载方式创建 Toast 实例
+let instance = null;
+
+/**
+ * 获取或创建 Toast 实例
+ * @returns {Object} Toast组件实例
+ */
+const getInstance = () => {
+  if (instance) return instance;
+  
+  // 创建Vue 3实例
+  const app = createApp(MessageToastComponent);
+  const mountEl = document.createElement('div');
+  document.body.appendChild(mountEl);
+  instance = app.mount(mountEl);
+  
+  return instance;
+};
 
 /**
  * 显示Toast提示
@@ -14,7 +27,8 @@ const instance = app.mount(mountEl);
  * @param {string} type - 提示类型，可选值：default, success, error, warning
  */
 export const toast = (message, duration = 3000, type = 'default') => {
-  instance.show(message, duration, type);
+  const inst = getInstance();
+  inst.show(message, duration, type);
 };
 
 /**

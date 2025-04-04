@@ -27,38 +27,39 @@ export const useApi = (apiFunction, options = {}) => {
       const response = await apiFunction(params);
       
       // 处理成功响应
-      if (response && response.success) {
+      if (response && response.success !== false) {
         data.value = response.data || response;
         if (onSuccess) {
           onSuccess(response);
         }
+        
+        return response;
       } else {
-        // 处理API返回的错误
-        error.value = {
+        // API返回了错误(这个分支不应该被执行，axios拦截器应该捕获所有错误)
+        const errorInfo = {
           message: response?.message || '请求失败',
           response
         };
+        error.value = errorInfo;
         if (onError) {
-          onError(error.value);
+          onError(errorInfo);
         }
+        
+        return response;
       }
-      
-      return response;
     } catch (err) {
-      // 处理异常
-      error.value = {
+      // axios拦截器应该捕获所有网络错误，但保留这个以防万一
+      console.error('API请求错误被useApi捕获，这不应该发生:', err);
+      const errorInfo = {
         message: err.message || '请求发生异常',
         error: err
       };
+      error.value = errorInfo;
       if (onError) {
-        onError(error.value);
+        onError(errorInfo);
       }
       
-      return {
-        success: false,
-        message: err.message,
-        error: err
-      };
+      return Promise.reject(err);
     } finally {
       loading.value = false;
     }

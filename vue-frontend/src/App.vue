@@ -1,20 +1,17 @@
 <template>
-  <div>
-    <SystemErrorNotice />
-    <ApiErrorHandler />
+  <div class="app-container">
+    <ErrorToast />
     <router-view/>
   </div>
 </template>
 
 <script>
-import SystemErrorNotice from '@mobile/SystemErrorNotice.vue'
-import ApiErrorHandler from './components/ApiErrorHandler.vue'
+import ErrorToast from './components/ErrorToast.vue'
 
 export default {
   name: 'App',
   components: {
-    SystemErrorNotice,
-    ApiErrorHandler
+    ErrorToast
   }
 }
 </script>
@@ -34,11 +31,9 @@ body {
   background-color: #f5f5f5;
 }
 
-.container {
+.app-container {
+  position: relative;
   width: 100%;
-  margin: 0 auto;
-  padding: 0;
-  background-color: #fff;
   min-height: 100vh;
 }
 

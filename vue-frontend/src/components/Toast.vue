@@ -1,5 +1,5 @@
 <template>
-  <div class="toast-container" v-if="isVisible && !isApiErrorVisible">
+  <div class="toast-container" v-if="isVisible">
     <transition name="toast-fade">
       <div class="toast-message" :class="[type, {'with-icon': showIcon}]">
         <div class="toast-message__icon" v-if="showIcon">
@@ -17,7 +17,6 @@ export default {
   data() {
     return {
       isVisible: false,
-      isApiErrorVisible: false,
       message: '',
       type: 'default',
       timeout: null
@@ -40,20 +39,16 @@ export default {
     }
   },
   mounted() {
-    // 监听API错误事件，当API错误显示时，隐藏Toast
-    window.addEventListener('api-error', this.handleApiError);
-    window.addEventListener('auth-error', this.handleApiError);
+    // 监听错误提示事件的显示和隐藏
+    window.addEventListener('error-toast-show', this.handleErrorToastShow);
+    window.addEventListener('error-toast-hide', this.handleErrorToastHide);
     
-    // 添加对新增事件的监听
-    window.addEventListener('api-toast-show', this.handleApiError);
-    window.addEventListener('api-toast-hide', this.handleApiToastHide);
+    console.log('Toast组件已挂载');
   },
   beforeUnmount() {
     // 移除事件监听器
-    window.removeEventListener('api-error', this.handleApiError);
-    window.removeEventListener('auth-error', this.handleApiError);
-    window.removeEventListener('api-toast-show', this.handleApiError);
-    window.removeEventListener('api-toast-hide', this.handleApiToastHide);
+    window.removeEventListener('error-toast-show', this.handleErrorToastShow);
+    window.removeEventListener('error-toast-hide', this.handleErrorToastHide);
     
     // 清除超时
     if (this.timeout) {
@@ -61,26 +56,19 @@ export default {
     }
   },
   methods: {
-    handleApiError() {
-      // 记录API错误正在显示
-      this.isApiErrorVisible = true;
-      // 隐藏当前的Toast
-      this.isVisible = false;
-      
-      // 5秒后恢复状态
-      setTimeout(() => {
-        this.isApiErrorVisible = false;
-      }, 5000);
+    // 响应ErrorToast显示事件
+    handleErrorToastShow(event) {
+      // 当ErrorToast显示时，隐藏Toast
+      this.hide();
     },
     
-    // 响应ApiErrorHandler隐藏事件
-    handleApiToastHide() {
-      this.isApiErrorVisible = false;
+    // 响应ErrorToast隐藏事件
+    handleErrorToastHide(event) {
+      // ErrorToast已隐藏，可以继续显示Toast
     },
     
     show(message, duration = 3000, type = 'default') {
-      // 如果当前API错误正在显示，则不显示Toast
-      if (this.isApiErrorVisible) return;
+      console.log('显示Toast消息:', message, type);
       
       // 清除之前的计时器
       if (this.timeout) {
@@ -108,31 +96,35 @@ export default {
 <style scoped>
 .toast-container {
   position: fixed;
-  bottom: 40px;
+  top: 10px;
   left: 50%;
   transform: translateX(-50%);
+  display: block;
   z-index: 10000;
   pointer-events: none;
-  width: 90%;
-  max-width: 420px;
 }
 
 .toast-message {
+  width: auto;
+  min-width: 180px;
+  max-width: 300px;
   display: flex;
   align-items: center;
   background-color: #ffffff;
   color: #333333;
-  padding: 16px 20px;
-  border-radius: 12px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  padding: 8px 10px;
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(10px);
   text-align: left;
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.4;
   font-weight: 500;
   overflow: hidden;
   position: relative;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.03);
+  pointer-events: auto;
+  margin: 0 auto;
 }
 
 .toast-message::before {
@@ -140,7 +132,7 @@ export default {
   position: absolute;
   left: 0;
   top: 0;
-  bottom: 0;
+  height: 100%;
   width: 4px;
 }
 
@@ -149,13 +141,13 @@ export default {
 }
 
 .toast-message__icon {
-  margin-right: 14px;
-  font-size: 20px;
+  margin-right: 8px;
+  font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background-color: rgba(0, 0, 0, 0.05);
   flex-shrink: 0;
@@ -177,7 +169,7 @@ export default {
 
 .toast-message.success .toast-message__icon {
   color: #2ecc71;
-  background-color: rgba(46, 204, 113, 0.1);
+  background-color: rgba(46, 204, 113, 0.08);
 }
 
 .toast-message.error {
@@ -191,7 +183,7 @@ export default {
 
 .toast-message.error .toast-message__icon {
   color: #e74c3c;
-  background-color: rgba(231, 76, 60, 0.1);
+  background-color: rgba(231, 76, 60, 0.08);
 }
 
 .toast-message.warning {
@@ -205,7 +197,7 @@ export default {
 
 .toast-message.warning .toast-message__icon {
   color: #f39c12;
-  background-color: rgba(243, 156, 18, 0.1);
+  background-color: rgba(243, 156, 18, 0.08);
 }
 
 .toast-message.default {
@@ -219,41 +211,46 @@ export default {
 
 .toast-message.default .toast-message__icon {
   color: #3498db;
-  background-color: rgba(52, 152, 219, 0.1);
+  background-color: rgba(52, 152, 219, 0.08);
 }
 
+/* 动画效果 */
 .toast-fade-enter-active,
 .toast-fade-leave-active {
-  transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: all 0.35s ease;
 }
 
 .toast-fade-enter-from {
-  transform: translateY(30px) translateX(-50%);
+  transform: translateX(50px);
   opacity: 0;
 }
 
 .toast-fade-leave-to {
+  transform: translateX(50px);
   opacity: 0;
-  transform: translateY(-20px) translateX(-50%);
 }
 
 @media (max-width: 768px) {
   .toast-container {
-    bottom: 30px;
-    width: 92%;
-    max-width: 360px;
+    top: 10px;
+    right: 10px;
   }
   
   .toast-message {
-    padding: 14px 18px;
-    font-size: 14px;
+    min-width: 0; 
+    max-width: 260px;
+    width: calc(100% - 20px);
+    padding: 7px 9px;
+    border-radius: 6px;
+    font-size: 11px;
+    line-height: 1.3;
   }
   
   .toast-message__icon {
-    width: 32px;
-    height: 32px;
-    font-size: 18px;
-    margin-right: 12px;
+    width: 22px;
+    height: 22px;
+    font-size: 12px;
+    margin-right: 7px;
   }
 }
 </style> 

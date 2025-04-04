@@ -2,7 +2,6 @@ export { useActivity } from './useActivity'
 export { useUser } from './useUser'
 export { useRegistration } from './useRegistration'
 export { usePayment } from './usePayment'
-export { useSystem } from './useSystem'
 export { useDanmu } from './useDanmu'
 
 /**

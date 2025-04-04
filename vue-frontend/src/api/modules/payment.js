@@ -2,38 +2,37 @@
  * 支付相关API
  */
 import apiInstance from '../core/axios';
-import { handleApiError } from '../core/errorHandler';
 
 /**
  * 创建支付订单
- * @param {Object} data - 支付订单数据
- * @param {string} data.registrationId - 报名记录ID
- * @param {number} data.amount - 支付金额
- * @param {string} data.paymentMethod - 支付方式 (wechat/alipay/bank/onsite)
- * @param {string} data.returnUrl - 支付完成后的前端跳转URL (可选)
- * @returns {Promise<Object>} 支付订单创建结果
+ * @param {Object} data - 支付数据
+ * @param {string} data.registrationId - 报名ID
+ * @param {string} data.paymentMethod - 支付方式 (weixin/alipay)
+ * @returns {Promise<Object>} 支付订单信息
  * @access public - 公开接口，不需要鉴权
  */
 export const createPayment = async (data) => {
-  try {
-    return await apiInstance.post('/payment/create', data);
-  } catch (error) {
-    return handleApiError(error);
-  }
+  return await apiInstance.post('/payment/create', data);
 };
 
 /**
  * 查询支付状态
- * @param {string} id - 支付订单ID
- * @returns {Promise<Object>} 支付状态
+ * @param {string} orderId - 订单ID
+ * @returns {Promise<Object>} 支付状态信息
  * @access public - 公开接口，不需要鉴权
  */
-export const getPaymentStatus = async (id) => {
-  try {
-    return await apiInstance.get(`/payment/status/${id}`);
-  } catch (error) {
-    return handleApiError(error);
-  }
+export const queryPaymentStatus = async (orderId) => {
+  return await apiInstance.get(`/payment/status/${orderId}`);
+};
+
+/**
+ * 获取支付历史记录
+ * @param {string} registrationId - 报名ID
+ * @returns {Promise<Object>} 支付历史记录
+ * @access public - 公开接口，不需要鉴权
+ */
+export const getPaymentHistory = async (registrationId) => {
+  return await apiInstance.get(`/payment/history/${registrationId}`);
 };
 
 /**
@@ -48,7 +47,7 @@ export const closePayment = async (id) => {
       status: 'canceled'
     });
   } catch (error) {
-    return handleApiError(error);
+    return error;
   }
 };
 
@@ -68,7 +67,7 @@ export const refundPayment = async (data) => {
       reason: data.reason
     });
   } catch (error) {
-    return handleApiError(error);
+    return error;
   }
 };
 
@@ -82,14 +81,15 @@ export const getRegistrationPayments = async (registrationId) => {
   try {
     return await apiInstance.get(`/payment/registration/${registrationId}`);
   } catch (error) {
-    return handleApiError(error);
+    return error;
   }
 };
 
 // 导出所有API
 export default {
   createPayment,
-  getPaymentStatus,
+  queryPaymentStatus,
+  getPaymentHistory,
   closePayment,
   refundPayment,
   getRegistrationPayments

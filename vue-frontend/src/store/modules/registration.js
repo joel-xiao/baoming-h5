@@ -1,5 +1,6 @@
 import { registrationApi, paymentApi } from '../../api'
 import { apiCache } from '../../api'
+import errorNotify from '../../utils/errorNotify'
 
 /**
  * 注册状态管理模块
@@ -37,15 +38,14 @@ const actions = {
         // API获取失败时，设置空数组
         console.error('从API获取参与者数据失败:', result.message)
         commit('activity/SET_PARTICIPANTS', [], { root: true })
-        // 添加错误状态处理
-        commit('system/SET_ERROR', { show: true, message: '获取参与者数据失败' }, { root: true })
+        errorNotify.showError('获取参与者数据失败')
       }
       
       return result
     } catch (error) {
       console.error('加载参与者列表失败:', error)
       commit('activity/SET_PARTICIPANTS', [], { root: true })
-      commit('system/SET_ERROR', { show: true, message: '获取参与者数据出错' }, { root: true })
+      errorNotify.showError('获取参与者数据出错')
       return { success: false, message: error.message }
     }
   },
@@ -93,13 +93,13 @@ const actions = {
         // API获取失败时，设置空数组
         console.error('从API获取订单数据失败:', result.message)
         commit('activity/SET_ORDERS', [], { root: true })
-        commit('system/SET_ERROR', { show: true, message: '获取订单数据失败' }, { root: true })
+        errorNotify.showError('获取订单数据失败')
         return { success: false, message: result.message }
       }
     } catch (error) {
       console.error('加载订单列表失败:', error)
       commit('activity/SET_ORDERS', [], { root: true })
-      commit('system/SET_ERROR', { show: true, message: '获取订单数据出错' }, { root: true })
+      errorNotify.showError('获取订单数据出错')
       return { success: false, message: error.message }
     }
   },
@@ -171,10 +171,7 @@ const actions = {
       }
     } catch (error) {
       console.error('提交报名信息失败:', error)
-      commit('system/SET_ERROR', { 
-        show: true, 
-        message: error.message || '提交失败，请稍后重试' 
-      }, { root: true })
+      errorNotify.showError(error.message || '提交失败，请稍后重试')
       return {
         success: false,
         message: error.message || '提交失败，请稍后重试'

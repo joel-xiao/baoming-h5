@@ -52,8 +52,9 @@
 </template>
 
 <script>
-import { ref, onMounted, onBeforeUnmount, onUnmounted } from 'vue'
-import { useActivity, useUser, useRegistration, useSystem, useDanmu } from '@store/hooks'
+import { ref, onMounted, onBeforeUnmount, onUpdated, nextTick, provide } from 'vue'
+import { useRouter } from 'vue-router'
+import { useActivity, useUser, useRegistration, useDanmu } from '@store/hooks'
 import Header from '@mobile/Header.vue'
 import CountdownTimer from '@mobile/CountdownTimer.vue'
 import ActivityStats from '@mobile/ActivityStats.vue'
@@ -67,6 +68,7 @@ import DanmuToggle from '@mobile/DanmuToggle.vue'
 import DanmuDebug from '@mobile/DanmuDebug.vue'
 import ScrollSync from '@mobile/ScrollSync.vue'
 import toast from '../../utils/toast'
+import errorNotify from '../../utils/errorNotify'
 
 export default {
   name: 'HomeView',
@@ -89,7 +91,6 @@ export default {
     const activity = useActivity()
     const user = useUser()
     const registration = useRegistration()
-    const system = useSystem()
     const danmu = useDanmu()
     
     const bgmRef = ref(null)
@@ -174,12 +175,13 @@ export default {
     // 加载数据函数
     const loadData = async () => {
       try {
-        // 并行请求数据提高效率
-        const [statsPromise, participantsPromise, ordersPromise] = [
-          activity.loadStats(),
-          registration.loadParticipants(),
-          registration.loadOrders()
-        ]
+        // 先获取活动和配置信息
+        await activity.loadActivityInfo()
+        
+        // 并行获取统计数据、参与者列表和订单列表
+        const statsPromise = activity.loadStatistics()
+        const participantsPromise = registration.loadParticipants()
+        const ordersPromise = registration.loadOrders()
         
         // 使用Promise.all并行等待所有请求完成
         await Promise.all([statsPromise, participantsPromise, ordersPromise])
@@ -188,11 +190,8 @@ export default {
         activity.checkActivityEnd()
       } catch (error) {
         console.error('数据加载失败:', error)
-        // 显示友好错误提示
-        system.setError({
-          show: true,
-          message: '数据加载失败，请刷新页面重试'
-        })
+        // 使用封装的错误通知工具
+        errorNotify.showError('数据加载失败，请刷新页面重试')
       }
     }
     

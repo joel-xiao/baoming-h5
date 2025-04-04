@@ -22,7 +22,8 @@
 <script>
 import { computed, ref, provide, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useActivity, useUser, useDanmu, useSystem } from '@/store/hooks'
+import { useActivity, useUser, useDanmu } from '@/store/hooks'
+import errorNotify from '../../utils/errorNotify'
 
 export default {
   name: 'FixedButton',
@@ -33,7 +34,6 @@ export default {
     const activity = useActivity()
     const user = useUser()
     const danmu = useDanmu()
-    const system = useSystem()
     
     const isFormVisible = ref(false)
     const isSubmitting = ref(false)
@@ -123,10 +123,7 @@ export default {
     
     // 处理支付失败
     const handlePaymentFailed = (data) => {
-      system.setError({
-        show: true,
-        message: data.error || '支付过程中发生错误'
-      })
+      errorNotify.showError(data.error || '支付过程中发生错误')
     }
     
     // 处理支付关闭
