@@ -1,19 +1,19 @@
 /**
  * 前端配置文件
- * 从环境变量加载配置
+ * 直接从环境变量加载配置
  */
 
 const config = {
-  // API配置
-  api: {
-    baseURL: process.env.VUE_APP_API_URL || 'http://localhost:3001/api',
-    timeout: 30000
-  },
-  
   // 应用信息
   app: {
     title: process.env.VUE_APP_TITLE || '团队报名平台',
     version: process.env.VUE_APP_VERSION || '1.0.0'
+  },
+  
+  // API配置
+  api: {
+    baseURL: process.env.VUE_APP_API_URL || 'http://localhost:3001/api',
+    timeout: parseInt(process.env.VUE_APP_API_TIMEOUT || '30000', 10)
   },
   
   // 功能特性

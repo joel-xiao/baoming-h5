@@ -72,29 +72,7 @@
 
 ### 后端配置
 
-后端配置使用两种方式：
-
-1. **配置文件**：`config.json` 包含项目基本配置
-2. **环境变量**：`.env` 文件包含敏感配置和环境特定配置
-
-#### 配置文件示例 (config.json)
-
-```json
-{
-  "project": {
-    "name": "团队报名管理平台",
-    "version": "1.0.0"
-  },
-  "features": {
-    "teamRegistration": true,
-    "offlineStorage": true
-  }
-}
-```
-
-#### 环境变量设置 (.env)
-
-复制 `.env.example` 为 `.env` 并设置相应的值：
+后端配置主要通过环境变量实现，在根目录创建`.env`文件：
 
 ```
 PORT=3001
@@ -103,6 +81,7 @@ PAYMENT_PROVIDER=wechat
 PAYMENT_APP_ID=your_app_id_here
 PAYMENT_MCH_ID=your_merchant_id_here
 PAYMENT_NOTIFY_URL=https://yourdomain.com/api/payment/notify
+JWT_SECRET=your_jwt_secret_key_here
 ```
 
 ### 前端配置
