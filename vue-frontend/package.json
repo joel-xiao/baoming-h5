@@ -1,7 +1,7 @@
 {
   "name": "vue-frontend",
   "version": "1.0.0",
-  "description": "武道开学报名系统前端",
+  "description": "vue-frontend",
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",

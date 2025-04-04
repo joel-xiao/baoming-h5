@@ -1,7 +1,7 @@
 {
   "name": "baoming-server",
   "version": "1.0.0",
-  "description": "武道开学报名系统服务端",
+  "description": "baoming-server",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -1,23 +1,16 @@
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
+const config = require('./index');
 
 // 数据库连接函数
 const connectDB = async () => {
   try {
     console.log('正在连接MongoDB数据库...');
-    console.log('MongoDB连接URI:', process.env.MONGODB_URI);
+    console.log('MongoDB连接URI:', config.database.uri);
     
-    // 设置MongoDB连接参数，增加超时时间
-    await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,   // 增加服务器选择超时到5秒
-      connectTimeoutMS: 10000,          // 连接超时增加到10秒
-      socketTimeoutMS: 45000,           // socket超时增加到45秒
-      family: 4,                        // 强制使用IPv4
-      maxPoolSize: 10,                  // 最大连接池大小
-      retryWrites: true,                // 启用重试写入
-      retryReads: true                  // 启用重试读取
-    });
+    // 使用配置中的参数连接MongoDB
+    await mongoose.connect(config.database.uri, config.database.options);
     
     console.log('MongoDB连接成功');
     return true;

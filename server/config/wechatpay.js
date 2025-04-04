@@ -2,14 +2,19 @@ const WechatPay = require('wechatpay-node-v3');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-require('dotenv').config();
+const config = require('./index');
+
+// 环境变量兼容处理函数
+const getEnv = (newKey, oldKey, defaultValue) => {
+  return process.env[newKey] || process.env[oldKey] || defaultValue;
+};
 
 // 检查环境变量
 const requiredEnvVars = [
-  'WECHAT_PAY_MCH_ID',
-  'WECHAT_PAY_APP_ID',
-  'WECHAT_PAY_NOTIFY_URL',
-  'WECHAT_PAY_SERIAL_NUMBER'
+  ['PAYMENT_MCH_ID', 'WECHAT_PAY_MCH_ID'],
+  ['PAYMENT_APP_ID', 'WECHAT_PAY_APP_ID'],
+  ['PAYMENT_NOTIFY_URL', 'WECHAT_PAY_NOTIFY_URL'],
+  ['PAYMENT_SERIAL_NUMBER', 'WECHAT_PAY_SERIAL_NUMBER']
 ];
 
 let wechatPayConfig = null;
@@ -18,13 +23,20 @@ let wechatPayConfig = null;
 const initWechatPay = () => {
   try {
     // 检查是否启用模拟模式
-    if (process.env.WECHAT_PAY_MOCK === 'true') {
+    const mockEnabled = getEnv('PAYMENT_MOCK', 'WECHAT_PAY_MOCK') === 'true';
+    if (mockEnabled) {
       console.log('微信支付使用模拟模式');
       return createMockWechatPay();
     }
     
     // 检查必要的环境变量是否存在
-    const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+    const missingVars = [];
+    requiredEnvVars.forEach(([newKey, oldKey]) => {
+      if (!process.env[newKey] && !process.env[oldKey]) {
+        missingVars.push(`${newKey} 或 ${oldKey}`);
+      }
+    });
+    
     if (missingVars.length > 0) {
       console.warn(`缺少微信支付必要的环境变量: ${missingVars.join(', ')}`);
       return null;
@@ -49,17 +61,17 @@ const initWechatPay = () => {
     const certificate = fs.readFileSync(certificatePath);
     
     // 创建微信支付配置
-    const config = {
-      mchid: process.env.WECHAT_PAY_MCH_ID,
-      appid: process.env.WECHAT_PAY_APP_ID,
+    const payConfig = {
+      mchid: getEnv('PAYMENT_MCH_ID', 'WECHAT_PAY_MCH_ID'),
+      appid: getEnv('PAYMENT_APP_ID', 'WECHAT_PAY_APP_ID'),
       publicKey: certificate,
       privateKey: privateKey,
-      notifyUrl: process.env.WECHAT_PAY_NOTIFY_URL,
-      serialNumber: process.env.WECHAT_PAY_SERIAL_NUMBER
+      notifyUrl: getEnv('PAYMENT_NOTIFY_URL', 'WECHAT_PAY_NOTIFY_URL'),
+      serialNumber: getEnv('PAYMENT_SERIAL_NUMBER', 'WECHAT_PAY_SERIAL_NUMBER')
     };
     
     // 创建微信支付实例
-    const wechatPay = new WechatPay(config);
+    const wechatPay = new WechatPay(payConfig);
     
     console.log('微信支付配置初始化成功');
     return wechatPay;
@@ -155,7 +167,7 @@ const getJsapiPayParams = (prepayId) => {
   const nonceStr = generateNonceStr();
   
   return wxpay.getSignature({
-    appId: process.env.WECHAT_PAY_APP_ID,
+    appId: getEnv('PAYMENT_APP_ID', 'WECHAT_PAY_APP_ID'),
     timestamp,
     nonceStr,
     package: `prepay_id=${prepayId}`

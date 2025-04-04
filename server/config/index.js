@@ -6,6 +6,11 @@
 // 加载环境变量
 require('dotenv').config();
 
+// 环境变量兼容处理函数
+const getEnv = (newKey, oldKey, defaultValue) => {
+  return process.env[newKey] || process.env[oldKey] || defaultValue;
+};
+
 const config = {
   // 应用信息
   app: {
@@ -22,21 +27,28 @@ const config = {
   
   // 数据库配置
   database: {
-    uri: process.env.DB_URI || 'mongodb://localhost:27017/team_registration',
+    uri: getEnv('DB_URI', 'MONGODB_URI', 'mongodb://localhost:27017/team_registration'),
     options: {
       useNewUrlParser: true,
-      useUnifiedTopology: true
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      family: 4,
+      maxPoolSize: 10,
+      retryWrites: true,
+      retryReads: true
     }
   },
   
   // 支付配置
   payment: {
     provider: process.env.PAYMENT_PROVIDER || 'wechat',
-    appId: process.env.PAYMENT_APP_ID,
-    mchId: process.env.PAYMENT_MCH_ID,
-    serialNumber: process.env.PAYMENT_SERIAL_NUMBER,
-    notifyUrl: process.env.PAYMENT_NOTIFY_URL,
-    mock: process.env.PAYMENT_MOCK === 'true'
+    appId: getEnv('PAYMENT_APP_ID', 'WECHAT_PAY_APP_ID'),
+    mchId: getEnv('PAYMENT_MCH_ID', 'WECHAT_PAY_MCH_ID'),
+    serialNumber: getEnv('PAYMENT_SERIAL_NUMBER', 'WECHAT_PAY_SERIAL_NUMBER'),
+    notifyUrl: getEnv('PAYMENT_NOTIFY_URL', 'WECHAT_PAY_NOTIFY_URL'),
+    mock: getEnv('PAYMENT_MOCK', 'WECHAT_PAY_MOCK') === 'true'
   },
   
   // JWT配置
@@ -57,5 +69,18 @@ const config = {
     toFile: process.env.LOG_TO_FILE === 'true'
   }
 };
+
+// 在开发环境下打印当前配置
+if (config.app.environment === 'development') {
+  // 过滤掉敏感信息
+  const safeConfig = JSON.parse(JSON.stringify(config));
+  if (safeConfig.jwt) safeConfig.jwt.secret = '******';
+  if (safeConfig.payment) {
+    safeConfig.payment.appId = safeConfig.payment.appId ? '******' : undefined;
+    safeConfig.payment.mchId = safeConfig.payment.mchId ? '******' : undefined;
+    safeConfig.payment.serialNumber = safeConfig.payment.serialNumber ? '******' : undefined;
+  }
+  console.log('当前配置:', JSON.stringify(safeConfig, null, 2));
+}
 
 module.exports = config; 
