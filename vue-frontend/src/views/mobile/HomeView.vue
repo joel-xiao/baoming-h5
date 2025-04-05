@@ -175,11 +175,8 @@ export default {
     // 加载数据函数
     const loadData = async () => {
       try {
-        // 先获取活动和配置信息
-        await activity.loadActivityInfo()
-        
         // 并行获取统计数据、参与者列表和订单列表
-        const statsPromise = activity.loadStatistics()
+        const statsPromise = activity.loadStats()
         const participantsPromise = registration.loadParticipants()
         const ordersPromise = registration.loadOrders()
         
