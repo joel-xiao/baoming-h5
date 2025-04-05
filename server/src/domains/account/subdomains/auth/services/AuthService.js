@@ -1,18 +1,35 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const appConfig = require('../../../../../config/app');
-const modelFactory = require('../../../../../infrastructure/database/connectors/ModelFactory');
-const Admin = require('../../../models/Admin').default;
-const { ADMIN_STATUS } = require('../../../models/Admin');
-const logger = require('../../../../../infrastructure/utils/helper/Logger');
-const { sendEmail } = require('../../../../../infrastructure/communication/email/EmailService');
+const appConfig = require('@config/app');
+const BaseService = require('@domains/services/BaseService');
+const container = require('@common/di/Container');
+const Admin = require('@domains/account/models/Admin');
+const { ADMIN_STATUS } = Admin;
 
 /**
  * 认证服务类
  * 处理用户认证、登录、令牌管理等功能
  */
-class AuthService {
+class AuthService extends BaseService {
+  /**
+   * 初始化认证服务
+   */
+  init() {
+    this.modelFactory = container.resolve('modelFactory');
+    this.adminRepo = this.modelFactory.getRepository(Admin, 'account');
+    this.adminModel = this.adminRepo.model; // 保留对模型的引用以兼容现有代码
+    this.emailService = container.resolve('emailService');
+  }
+
+  /**
+   * 获取数据访问对象
+   * @returns {Object} 数据访问对象
+   */
+  getDataAccess() {
+    return this.adminRepo;
+  }
+
   /**
    * 生成JWT令牌
    * @param {Object} user 用户对象
@@ -48,15 +65,12 @@ class AuthService {
    */
   async login(username, password) {
     try {
-      // 获取Admin模型
-      const adminModel = modelFactory.getModel('Admin', 'account');
-      
       // 查找用户
-      const admin = await adminModel.findOne({ username });
+      const admin = await this.adminModel.findOne({ username });
       
       // 检查用户是否存在
       if (!admin) {
-        logger.warn(`用户名不存在: ${username}`);
+        this.logWarn(`用户名不存在: ${username}`);
         return {
           success: false,
           status: 401,
@@ -66,7 +80,7 @@ class AuthService {
       
       // 检查用户状态
       if (admin.status === ADMIN_STATUS.DISABLED) {
-        logger.warn(`禁用账户尝试登录: ${username}`);
+        this.logWarn(`禁用账户尝试登录: ${username}`);
         return {
           success: false,
           status: 403,
@@ -78,7 +92,7 @@ class AuthService {
       const isMatch = await bcrypt.compare(password, admin.password);
       
       if (!isMatch) {
-        logger.warn(`密码错误的登录尝试: ${username}`);
+        this.logWarn(`密码错误的登录尝试: ${username}`);
         return {
           success: false,
           status: 401,
@@ -93,7 +107,7 @@ class AuthService {
       admin.lastLogin = new Date();
       await admin.save();
       
-      logger.info(`管理员登录成功: ${username}`);
+      this.logInfo(`管理员登录成功: ${username}`);
       
       // 返回结果
       return {
@@ -111,7 +125,7 @@ class AuthService {
         message: '登录成功'
       };
     } catch (error) {
-      logger.error(`登录服务错误: ${error.message}`);
+      this.logError(`登录服务错误: ${error.message}`);
       return {
         success: false,
         status: 500,
@@ -138,11 +152,8 @@ class AuthService {
       // 验证刷新令牌
       const decoded = jwt.verify(refreshToken, appConfig.jwt.refreshSecret);
       
-      // 获取Admin模型
-      const adminModel = modelFactory.getModel('Admin', 'account');
-      
       // 查找用户
-      const admin = await adminModel.findById(decoded.id);
+      const admin = await this.adminModel.findById(decoded.id);
       
       if (!admin || admin.status === ADMIN_STATUS.DISABLED) {
         return {
@@ -161,7 +172,7 @@ class AuthService {
         message: '令牌刷新成功'
       };
     } catch (error) {
-      logger.error(`刷新令牌错误: ${error.message}`);
+      this.logError(`刷新令牌错误: ${error.message}`);
       
       if (error.name === 'TokenExpiredError') {
         return {
@@ -187,7 +198,7 @@ class AuthService {
   async getCurrentUser(userId) {
     try {
       // 获取Admin模型
-      const adminModel = modelFactory.getModel('Admin', 'account');
+      const adminModel = this.modelFactory.getModel('Admin', 'account');
       
       // 查找用户
       const user = await adminModel.findById(userId).select('-password');
@@ -206,7 +217,7 @@ class AuthService {
         message: '获取用户信息成功'
       };
     } catch (error) {
-      logger.error(`获取用户信息错误: ${error.message}`);
+      this.logError(`获取用户信息错误: ${error.message}`);
       return {
         success: false,
         status: 500,
@@ -226,7 +237,7 @@ class AuthService {
   async changePassword(userId, currentPassword, newPassword) {
     try {
       // 获取Admin模型
-      const adminModel = modelFactory.getModel('Admin', 'account');
+      const adminModel = this.modelFactory.getModel('Admin', 'account');
       
       // 查找用户
       const admin = await adminModel.findById(userId);
@@ -251,14 +262,14 @@ class AuthService {
       admin.passwordChangedAt = new Date();
       await admin.save();
       
-      logger.info(`管理员修改密码成功: ${admin.username}`);
+      this.logInfo(`管理员修改密码成功: ${admin.username}`);
       
       return {
         success: true,
         message: '密码修改成功'
       };
     } catch (error) {
-      logger.error(`修改密码错误: ${error.message}`);
+      this.logError(`修改密码错误: ${error.message}`);
       return {
         success: false,
         status: 500,
@@ -276,7 +287,7 @@ class AuthService {
   async sendPasswordResetEmail(email) {
     try {
       // 获取Admin模型
-      const adminModel = modelFactory.getModel('Admin', 'account');
+      const adminModel = this.modelFactory.getModel('Admin', 'account');
       
       //
       // 查找用户
@@ -284,7 +295,7 @@ class AuthService {
       
       // 即使用户不存在，我们也返回成功以防止枚举攻击
       if (!admin) {
-        logger.warn(`尝试为不存在的邮箱重置密码: ${email}`);
+        this.logWarn(`尝试为不存在的邮箱重置密码: ${email}`);
         return {
           success: true,
           message: '如果该邮箱存在，重置链接将发送到邮箱'
@@ -310,7 +321,7 @@ class AuthService {
       const resetUrl = `${appConfig.frontend.url}/reset-password/${resetToken}`;
       
       // 发送邮件
-      await sendEmail({
+      await this.emailService.sendEmail({
         to: admin.email,
         subject: '【团队报名系统】密码重置',
         text: `您收到此邮件是因为您（或其他人）请求重置密码。请点击以下链接重置密码，链接1小时内有效：\n\n${resetUrl}\n\n如果您没有请求重置密码，请忽略此邮件，您的密码将保持不变。`,
@@ -325,14 +336,14 @@ class AuthService {
         `
       });
       
-      logger.info(`密码重置邮件已发送: ${email}`);
+      this.logInfo(`密码重置邮件已发送: ${email}`);
       
       return {
         success: true,
         message: '如果该邮箱存在，重置链接将发送到邮箱'
       };
     } catch (error) {
-      logger.error(`发送密码重置邮件错误: ${error.message}`);
+      this.logError(`发送密码重置邮件错误: ${error.message}`);
       return {
         success: false,
         status: 500,
@@ -357,7 +368,7 @@ class AuthService {
         .digest('hex');
       
       // 获取Admin模型
-      const adminModel = modelFactory.getModel('Admin', 'account');
+      const adminModel = this.modelFactory.getModel('Admin', 'account');
       
       // 查找用户
       const admin = await adminModel.findOne({
@@ -384,14 +395,14 @@ class AuthService {
       admin.resetPasswordExpires = undefined;
       await admin.save();
       
-      logger.info(`管理员重置密码成功: ${admin.username}`);
+      this.logInfo(`管理员重置密码成功: ${admin.username}`);
       
       return {
         success: true,
         message: '密码重置成功，请使用新密码登录'
       };
     } catch (error) {
-      logger.error(`重置密码错误: ${error.message}`);
+      this.logError(`重置密码错误: ${error.message}`);
       return {
         success: false,
         status: 500,

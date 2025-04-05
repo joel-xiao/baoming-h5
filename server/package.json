@@ -35,7 +35,6 @@
     "jsonwebtoken": "^9.0.2",
     "module-alias": "^2.2.3",
     "mongoose": "^7.8.6",
-    "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.14.0",
     "nodemailer": "^6.10.0",
@@ -52,11 +51,20 @@
     "@root": ".",
     "@src": "src",
     "@config": "src/config",
-    "@infrastructure": "src/infrastructure",
     "@domains": "src/domains",
-    "@utils": "src/infrastructure/utils",
-    "@lib": "src/lib",
-    "@database": "src/infrastructure/database",
-    "@middleware": "src/infrastructure/middleware"
+    "@utils": "src/infrastructure/common/utils",
+    "@data": "src/infrastructure/data",
+    "@repositories": "src/infrastructure/data/repositories",
+    "@connectors": "src/infrastructure/data/connectors",
+    "@web": "src/infrastructure/web",
+    "@middleware": "src/infrastructure/web/middlewares",
+    "@response": "src/infrastructure/web/response",
+    "@routes": "src/infrastructure/web/routes",
+    "@external": "src/infrastructure/external",
+    "@payment": "src/infrastructure/external/payment",
+    "@messaging": "src/infrastructure/external/messaging",
+    "@common": "src/infrastructure/common",
+    "@logging": "src/infrastructure/common/logging",
+    "@security": "src/infrastructure/security"
   }
 }

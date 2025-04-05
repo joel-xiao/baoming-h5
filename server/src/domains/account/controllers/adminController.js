@@ -1,13 +1,16 @@
 const bcrypt = require('bcrypt');
-const appConfig = require('../../../config/app');
-const ModelFactory = require('../../../infrastructure/database/connectors/ModelFactory');
+const appConfig = require('@config/app');
+const container = require('@common/di/Container');
+const ModelFactory = require('@connectors/ModelFactory');
 const Admin = require('../models/Admin');
-const Registration = require('../../../domains/registration/models/Registration');
-const Payment = require('../../../domains/payment/models/Payment');
-const logger = require('../../../infrastructure/utils/helper/Logger');
-const { ExportService } = require('../../../infrastructure/utils/export/ExportService');
+const Registration = require('@domains/registration/models/Registration');
+const Payment = require('@domains/payment/models/Payment');
+const { ExportService } = require('@utils/export/ExportService');
 const { ADMIN_ROLE, ADMIN_STATUS } = Admin;
-const { ResponseUtil } = require('../../../infrastructure/utils/http/ResponseUtil');
+
+// 一次性解析常用依赖
+const logger = container.resolve('logger');
+const responseFormatter = container.resolve('responseFormatter');
 
 /**
  * 获取所有注册记录
@@ -47,7 +50,7 @@ const getAllRegistrations = async (req, res) => {
     // 获取总记录数
     const total = await registrationModel.countDocuments(query);
     
-    return ResponseUtil.success(res, '获取注册记录成功', {
+    return responseFormatter.success(res, {
       registrations,
       pagination: {
         page: parseInt(page),
@@ -55,10 +58,10 @@ const getAllRegistrations = async (req, res) => {
         total,
         pages: Math.ceil(total / limit)
       }
-    });
+    }, '获取注册记录成功');
   } catch (error) {
     logger.error(`获取注册记录错误: ${error.message}`);
-    return ResponseUtil.serverError(res, '获取注册记录时发生错误', error);
+    return responseFormatter.error(res, '获取注册记录时发生错误');
   }
 };
 
@@ -131,7 +134,7 @@ const getStats = async (req, res) => {
       }
     ]);
     
-    return ResponseUtil.success(res, '获取统计数据成功', {
+    return responseFormatter.success(res, {
       registration: {
         total: totalRegistrations,
         today: todayRegistrations,
@@ -153,10 +156,10 @@ const getStats = async (req, res) => {
           return acc;
         }, {})
       }
-    });
+    }, '获取统计数据成功');
   } catch (error) {
     logger.error(`获取统计数据错误: ${error.message}`);
-    return ResponseUtil.serverError(res, '获取统计数据时发生错误', error);
+    return responseFormatter.error(res, '获取统计数据时发生错误');
   }
 };
 
@@ -193,7 +196,7 @@ const exportRegistrations = async (req, res) => {
     logger.info(`导出注册数据成功, 格式: ${format}, 记录数: ${registrations.length}`);
   } catch (error) {
     logger.error(`导出注册数据错误: ${error.message}`);
-    return ResponseUtil.serverError(res, '导出注册数据时发生错误', error);
+    return responseFormatter.error(res, '导出注册数据时发生错误');
   }
 };
 
@@ -230,7 +233,7 @@ const exportPayments = async (req, res) => {
     logger.info(`导出支付数据成功, 格式: ${format}, 记录数: ${payments.length}`);
   } catch (error) {
     logger.error(`导出支付数据错误: ${error.message}`);
-    return ResponseUtil.serverError(res, '导出支付数据时发生错误', error);
+    return responseFormatter.error(res, '导出支付数据时发生错误');
   }
 };
 
@@ -247,10 +250,10 @@ const getAllUsers = async (req, res) => {
     // 查询用户
     const users = await adminModel.find().select('-password').sort({ createdAt: -1 });
     
-    return ResponseUtil.success(res, '获取管理员用户成功', users);
+    return responseFormatter.success(res, users, '获取管理员用户成功');
   } catch (error) {
     logger.error(`获取管理员用户错误: ${error.message}`);
-    return ResponseUtil.serverError(res, '获取管理员用户时发生错误', error);
+    return responseFormatter.error(res, '获取管理员用户时发生错误');
   }
 };
 
@@ -270,7 +273,7 @@ const createUser = async (req, res) => {
     const existingUser = await adminModel.findOne({ username });
     
     if (existingUser) {
-      return ResponseUtil.badRequest(res, '用户名已存在');
+      return responseFormatter.badRequest(res, '用户名已存在');
     }
     
     // 检查邮箱是否存在
@@ -278,7 +281,7 @@ const createUser = async (req, res) => {
       const existingEmail = await adminModel.findOne({ email });
       
       if (existingEmail) {
-        return ResponseUtil.badRequest(res, '邮箱已存在');
+        return responseFormatter.badRequest(res, '邮箱已存在');
       }
     }
     
@@ -303,10 +306,10 @@ const createUser = async (req, res) => {
     
     logger.info(`管理员创建成功: ${username}, 创建者: ${req.user.username}`);
     
-    return ResponseUtil.success(res, '管理员创建成功', user, 201);
+    return responseFormatter.success(res, user, '管理员创建成功', 201);
   } catch (error) {
     logger.error(`创建管理员错误: ${error.message}`);
-    return ResponseUtil.serverError(res, '创建管理员时发生错误', error);
+    return responseFormatter.error(res, '创建管理员时发生错误');
   }
 };
 
@@ -329,7 +332,7 @@ const updateUser = async (req, res) => {
       const user = await adminModel.findById(id);
       
       if (user && user.role === ADMIN_ROLE.SUPER_ADMIN) {
-        return ResponseUtil.forbidden(res, '不能降级超级管理员');
+        return responseFormatter.forbidden(res, '不能降级超级管理员');
       }
     }
     
@@ -344,15 +347,15 @@ const updateUser = async (req, res) => {
     ).select('-password');
     
     if (!updatedUser) {
-      return ResponseUtil.notFound(res, '用户不存在');
+      return responseFormatter.notFound(res, '用户不存在');
     }
     
     logger.info(`管理员更新成功: ${updatedUser.username}, 更新者: ${req.user.username}`);
     
-    return ResponseUtil.success(res, '管理员更新成功', updatedUser);
+    return responseFormatter.success(res, updatedUser, '管理员更新成功');
   } catch (error) {
     logger.error(`更新管理员错误: ${error.message}`);
-    return ResponseUtil.serverError(res, '更新管理员时发生错误', error);
+    return responseFormatter.error(res, '更新管理员时发生错误');
   }
 };
 
@@ -372,17 +375,17 @@ const deleteUser = async (req, res) => {
     const user = await adminModel.findById(id);
     
     if (!user) {
-      return ResponseUtil.notFound(res, '用户不存在');
+      return responseFormatter.notFound(res, '用户不存在');
     }
     
     // 检查是否是超级管理员
     if (user.role === ADMIN_ROLE.SUPER_ADMIN) {
-      return ResponseUtil.forbidden(res, '不能删除超级管理员');
+      return responseFormatter.forbidden(res, '不能删除超级管理员');
     }
     
     // 检查是否删除自己
     if (user._id.toString() === req.user._id.toString()) {
-      return ResponseUtil.forbidden(res, '不能删除当前登录用户');
+      return responseFormatter.forbidden(res, '不能删除当前登录用户');
     }
     
     // 删除用户
@@ -390,10 +393,10 @@ const deleteUser = async (req, res) => {
     
     logger.info(`管理员删除成功: ${user.username}, 删除者: ${req.user.username}`);
     
-    return ResponseUtil.success(res, '管理员删除成功');
+    return responseFormatter.success(res, '管理员删除成功');
   } catch (error) {
     logger.error(`删除管理员错误: ${error.message}`);
-    return ResponseUtil.serverError(res, '删除管理员时发生错误', error);
+    return responseFormatter.error(res, '删除管理员时发生错误');
   }
 };
 

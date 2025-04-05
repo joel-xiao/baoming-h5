@@ -45,14 +45,20 @@
   - **/statistics**: 统计领域
 
 - **/infrastructure**: 基础设施层，提供技术支持
-  - **/database**: 数据库相关
-  - **/storage**: 存储相关
+  - **/data**: 数据访问相关
+    - **/connectors**: 数据库连接器
+    - **/repositories**: 仓储实现
+  - **/web**: Web相关
+    - **/middlewares**: 中间件
+    - **/routes**: 路由相关
+    - **/response**: 响应处理
+  - **/external**: 外部服务
+    - **/payment**: 支付相关
+    - **/messaging**: 消息服务
+  - **/common**: 通用组件
+    - **/utils**: 工具类
+    - **/logging**: 日志相关
   - **/security**: 安全相关
-  - **/communication**: 通信相关
-  - **/integration**: 外部集成
-  - **/utils**: 通用工具
-  - **/middleware**: 中间件
-  - **/scheduler**: 任务调度
 
 - **/lib**: 内部库
   - **/common**: 
@@ -415,3 +421,231 @@ class PaymentController {
 - 静态代码分析：ESLint、SonarQube
 - 架构可视化：Draw.io、PlantUML
 - 测试工具：Jest、Mocha、Chai 
+
+## 依赖注入模式
+
+本项目采用依赖注入模式来管理组件间依赖关系，提高代码的可测试性和可维护性。
+
+### 容器设计
+
+系统使用自定义的依赖注入容器 (`Container`) 来管理组件依赖关系：
+
+```javascript
+// 基础设施层容器定义 (/infrastructure/common/di/Container.js)
+class Container {
+  constructor() {
+    this.services = new Map();
+    this.instances = new Map();
+  }
+
+  register(name, service, options = {}) {
+    this.services.set(name, {
+      service,
+      singleton: options.singleton || false,
+      dependencies: options.dependencies || []
+    });
+  }
+
+  resolve(name) {
+    // 解析依赖并返回实例
+  }
+}
+```
+
+所有基础设施组件在 `infrastructure/index.js` 中注册到容器：
+
+```javascript
+// 通用组件
+container.register('logger', LoggerService, { singleton: true });
+container.register('cache', MemoryCache, { 
+  singleton: true,
+  dependencies: ['logger']
+});
+
+// 数据访问组件
+container.register('database', DatabaseConnector, { 
+  singleton: true,
+  dependencies: ['logger']
+});
+
+// 外部服务组件
+container.register('emailService', EmailService, {
+  singleton: true,
+  dependencies: ['logger']
+});
+```
+
+### BaseService 基类
+
+所有领域服务继承自 `BaseService` 基类，它提供通用功能和依赖解析：
+
+```javascript
+// domains/services/BaseService.js
+class BaseService {
+  constructor() {
+    // 自动注入常用依赖
+    this.logger = container.resolve('logger');
+    this.emailService = container.resolve('emailService');
+    this.idGenerator = container.resolve('idGenerator');
+    
+    // 初始化当前服务
+    this.init();
+  }
+  
+  init() {
+    // 子类可以覆盖此方法进行特定初始化
+  }
+  
+  // 通用方法...
+}
+```
+
+`BaseService` 提供的通用功能：
+
+- 日志记录 (`logInfo`, `logError`)
+- 邮件发送 (`sendEmail`)
+- ID生成 (`generateId`)
+- 响应格式化 (`successResponse`, `errorResponse`)
+- 参数验证 (`validateRequired`)
+- 异常处理 (`wrapAsync`)
+
+### 服务实例化策略
+
+领域服务采用单例模式导出，确保全局状态一致性：
+
+```javascript
+// domains/registration/services/RegistrationService.js
+class RegistrationService extends BaseService {
+  // 服务实现...
+}
+
+// 创建并导出单例
+const registrationService = new RegistrationService();
+module.exports = registrationService;
+```
+
+### 跨领域引用规则
+
+服务之间的引用应该遵循以下规则：
+
+- **同领域引用**：同一领域内的服务可以直接相互引用
+- **跨领域引用**：不同领域之间的服务引用必须通过依赖注入容器进行解析
+- **应用层调用**：控制器和应用层组件可以直接引用和调用各个领域的服务
+
+示例：跨领域服务调用：
+
+```javascript
+// TeamService.js
+init() {
+  // 通过依赖注入获取其他领域的服务
+  this.registrationService = container.resolve('registrationService');
+}
+
+async createTeam(teamData) {
+  // 调用其他领域的服务
+  await this.registrationService.checkRegistrationQuota();
+}
+```
+
+### 控制器使用依赖注入的最佳实践
+
+控制器作为应用层组件，负责处理HTTP请求并将其转发给领域服务。为保持代码的简洁性和可维护性，控制器中使用依赖注入时应遵循以下最佳实践：
+
+#### 一次性解析常用依赖
+
+在控制器文件顶部一次性解析常用依赖，避免在每个控制器方法中重复调用`container.resolve()`。
+
+```javascript
+// 文件顶部一次性解析
+const logger = container.resolve('logger');
+const responseFormatter = container.resolve('responseFormatter');
+const modelFactory = container.resolve('modelFactory');
+
+// 在控制器方法中直接使用
+const getUsers = async (req, res) => {
+  try {
+    // 直接使用已解析的依赖
+    const users = await userService.findAll();
+    return responseFormatter.success(res, users);
+  } catch (error) {
+    logger.error(`获取用户列表错误: ${error.message}`);
+    return responseFormatter.error(res, '获取用户列表失败');
+  }
+};
+```
+
+#### 将业务逻辑委托给领域服务
+
+控制器应该尽量精简，主要负责：
+- 解析和验证HTTP请求
+- 调用领域服务处理业务逻辑
+- 格式化响应结果
+
+不应在控制器中实现复杂的业务逻辑，而应将其委托给领域服务处理。
+
+```javascript
+// 推荐做法
+const createUser = async (req, res) => {
+  try {
+    const userData = req.body;
+    // 将业务逻辑委托给服务
+    const result = await userService.createUser(userData);
+    return responseFormatter.success(res, result, '用户创建成功');
+  } catch (error) {
+    logger.error(`创建用户错误: ${error.message}`);
+    return responseFormatter.error(res, '创建用户失败');
+  }
+};
+```
+
+#### 统一的错误处理
+
+在控制器中应统一处理异常，并使用一致的方式返回错误响应。
+
+```javascript
+// 统一的错误处理模式
+const someAction = async (req, res) => {
+  try {
+    // 业务逻辑处理
+    return responseFormatter.success(res, result);
+  } catch (error) {
+    logger.error(`操作失败: ${error.message}`);
+    if (error.name === 'ValidationError') {
+      return responseFormatter.badRequest(res, error.message);
+    } else if (error.name === 'NotFoundError') {
+      return responseFormatter.notFound(res, error.message);
+    }
+    return responseFormatter.error(res, '操作失败');
+  }
+};
+```
+
+### 代码组织原则
+
+1. **领域边界**：
+   - 尽量避免跨领域直接调用
+   - 领域间通信通过领域服务的公共接口或事件进行
+   - 避免领域模型的泄漏
+
+2. **依赖方向**：
+   - 业务领域可以依赖基础设施层
+   - 基础设施层不应依赖业务领域
+   - 子领域可以依赖其所属的主领域
+
+3. **服务职责**：
+   - 服务应专注于特定业务逻辑
+   - 避免创建"万能"服务
+   - 使用依赖注入获取依赖，而不是直接实例化
+
+4. **控制器简洁性**：
+   - 控制器应仅处理请求/响应逻辑
+   - 业务逻辑应委托给服务层处理
+   - 参数验证和转换
+   - 调用领域服务
+   - 处理响应和错误
+
+5. **服务实例化和引用**：
+   - 服务使用单例模式导出
+   - 同领域使用相对路径引用
+   - 跨领域使用别名路径引用
+   - 基础设施使用别名路径引用 
