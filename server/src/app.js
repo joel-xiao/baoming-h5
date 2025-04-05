@@ -1,122 +1,66 @@
+// 优先加载环境变量
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const compression = require('compression');
 const morgan = require('morgan');
+const { EventEmitter } = require('events');
 const path = require('path');
-const fs = require('fs-extra');
 
-// 导入配置
+// 配置文件
 const appConfig = require('./config/app');
-const { dbType } = require('./config/database');
 
-// 导入数据库连接
-const { Database } = require('./core/db/Database');
-
-// 导入工具类
-const logger = require('./core/utils/Logger');
-const { ResponseUtil } = require('./core/utils/ResponseUtil');
-
-// 导入路由
-const apiRoutes = require('./api/routes');
+// 工具
+const logger = require('./infrastructure/utils/helper/Logger');
+const RouteLoader = require('./infrastructure/utils/helper/RouteLoader');
+const errorHandler = require('./infrastructure/middleware/errorHandler');
+const { Database } = require('./infrastructure/database/connectors/Database');
 
 // 创建Express应用
 const app = express();
 
-// 中间件配置
+// 设置全局事件发射器
+const eventEmitter = global.eventEmitter || new EventEmitter();
+global.eventEmitter = eventEmitter;
+app.set('eventEmitter', eventEmitter);
+
+// 中间件
+app.use(helmet());
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors({
-  origin: appConfig.corsOrigins,
-  credentials: true
-}));
-app.use(helmet());
-app.use(compression());
+app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
 
-// 日志中间件
-if (appConfig.env === 'development') {
-  app.use(morgan('dev'));
-} else {
-  // 创建日志目录
-  const logDirectory = path.join(__dirname, '../logs');
-  fs.ensureDirSync(logDirectory);
+// 设置静态文件目录
+app.use('/static', express.static(path.join(__dirname, 'static')));
+
+// 初始化数据库连接
+Database.connect().then(() => {
+  logger.info('数据库连接成功');
   
-  // 创建日志写入流
-  const accessLogStream = fs.createWriteStream(
-    path.join(logDirectory, 'access.log'),
-    { flags: 'a' }
-  );
+  // 加载所有领域路由
+  RouteLoader.loadDomainRoutes(app, path.join(__dirname, 'domains'), '/api');
   
-  // 使用combined格式并写入文件
-  app.use(morgan('combined', { stream: accessLogStream }));
-}
+  logger.info('所有领域路由加载完成');
+}).catch(err => {
+  logger.error(`数据库连接失败: ${err.message}`);
+});
 
-// 静态文件服务
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
-// API路由
-app.use(appConfig.apiPrefix, apiRoutes);
+// 首页
+app.get('/', (req, res) => {
+  res.send('团队报名系统 API 服务已启动');
+});
 
 // 404处理
-app.use((req, res, next) => {
-  ResponseUtil.notFound(res, '请求的资源不存在');
+app.use((req, res) => {
+  res.status(404).json({ 
+    success: false, 
+    message: '请求的资源不存在' 
+  });
 });
 
 // 错误处理中间件
-app.use((err, req, res, next) => {
-  logger.error(`${err.name}: ${err.message}\n${err.stack}`);
-  
-  const status = err.status || 500;
-  const message = appConfig.env === 'production' && status === 500
-    ? '服务器内部错误'
-    : err.message;
-  
-  // 使用ResponseUtil处理错误
-  switch (status) {
-    case 400:
-      return ResponseUtil.badRequest(res, message);
-    case 401:
-      return ResponseUtil.unauthorized(res, message);
-    case 403:
-      return ResponseUtil.forbidden(res, message);
-    case 404:
-      return ResponseUtil.notFound(res, message);
-    default:
-      return ResponseUtil.serverError(res, message, 
-        appConfig.env !== 'production' ? err : null);
-  }
-});
+app.use(errorHandler);
 
-// 启动应用
-async function startServer() {
-  try {
-    // 连接数据库
-    await Database.connect();
-    logger.info(`已连接到 ${dbType} 数据库`);
-    
-    // 创建上传目录
-    fs.ensureDirSync(path.join(__dirname, '..', appConfig.upload.dir));
-    
-    // 启动服务器
-    const port = appConfig.port;
-    app.listen(port, () => {
-      logger.info(`服务器运行在 http://localhost:${port}`);
-      logger.info(`环境: ${appConfig.env}`);
-      logger.info(`API前缀: ${appConfig.apiPrefix}`);
-    });
-  } catch (error) {
-    logger.error('启动服务器失败:', error);
-    process.exit(1);
-  }
-}
-
-// 导出app供测试使用
-module.exports = {
-  app,
-  startServer
-};
-
-// 如果直接运行该文件，则启动服务器
-if (require.main === module) {
-  startServer();
-} 
+module.exports = app; 
