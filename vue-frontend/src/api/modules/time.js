@@ -10,7 +10,7 @@ import { withCache } from '../core/cache';
  * @access public - 公开接口，不需要鉴权
  */
 export const getServerTime = async () => {
-  return await apiInstance.get('/time');
+  return await apiInstance.get('/time/server-time');
 };
 
 // 使用缓存优化获取服务器时间
