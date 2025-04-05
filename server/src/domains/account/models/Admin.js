@@ -7,10 +7,8 @@ const SchemaMapper = container.resolve('schemaMapper');
  * 管理员角色常量
  */
 const ADMIN_ROLE = {
-  SUPER_ADMIN: 'super_admin',
   ADMIN: 'admin',
-  EDITOR: 'editor',
-  VIEWER: 'viewer'
+  EDITOR: 'editor'
 };
 
 /**
@@ -18,8 +16,7 @@ const ADMIN_ROLE = {
  */
 const ADMIN_STATUS = {
   ACTIVE: 'active',
-  INACTIVE: 'inactive',
-  LOCKED: 'locked'
+  INACTIVE: 'inactive'
 };
 
 /**
@@ -77,32 +74,13 @@ const adminSchema = {
     type: 'date'
   },
   
-  lastLoginIP: {
-    type: 'string'
-  },
-  
-  // 安全信息
+  // 密码重置字段
   passwordResetToken: {
     type: 'string'
   },
   
   passwordResetExpires: {
     type: 'date'
-  },
-  
-  loginAttempts: {
-    type: 'number',
-    default: 0
-  },
-  
-  lockUntil: {
-    type: 'date'
-  },
-  
-  // 权限
-  permissions: {
-    type: 'array',
-    default: []
   }
 };
 

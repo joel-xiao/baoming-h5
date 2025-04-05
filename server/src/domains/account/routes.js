@@ -1,13 +1,12 @@
 /**
  * 账户领域路由
- * 整合账户相关功能和子领域
+ * 简化版账户相关功能
  */
 
 const express = require('express');
 const router = express.Router();
-// 使用子域的控制器代替主领域控制器
-const authController = require('./subdomains/auth/controllers/authController');
-const adminController = require('./subdomains/admin/controllers/adminController');
+const authController = require('./controllers/authController');
+const adminController = require('./controllers/adminController');
 
 // 定义公共路径 - 不需要身份验证的API
 const publicPaths = [
@@ -62,7 +61,7 @@ authRouter.post('/account/password/reset', authController.sendPasswordResetEmail
 authRouter.put('/account/password/reset/:token', authController.resetPassword);
 
 // 管理员路由
-// 所有管理员路由都需要身份验证和管理员权限 - 现在由RouteLoader统一处理
+// 所有管理员路由都需要身份验证和管理员权限
 const adminRouter = express.Router();
 
 /**

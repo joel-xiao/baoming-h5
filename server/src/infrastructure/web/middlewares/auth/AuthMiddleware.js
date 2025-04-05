@@ -71,8 +71,8 @@ class AuthMiddleware {
       return this.responseFormatter.unauthorized(res, '请先登录');
     }
     
-    // 检查用户角色
-    if (req.user.role !== ADMIN_ROLE.SUPER_ADMIN && req.user.role !== ADMIN_ROLE.ADMIN) {
+    // 检查用户角色 - 简化后只需要检查ADMIN角色
+    if (req.user.role !== ADMIN_ROLE.ADMIN) {
       return this.responseFormatter.forbidden(res, '您没有管理员权限');
     }
     
