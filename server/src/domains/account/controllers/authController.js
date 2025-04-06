@@ -34,7 +34,6 @@ const login = async (req, res) => {
  */
 const logout = async (req, res) => {
   try {
-    // 客户端应删除令牌
     return responseFormatter.success(res, null, '成功退出登录');
   } catch (error) {
     logger.error(`退出登录错误: ${error.message}`);

@@ -39,10 +39,6 @@ class ErrorHandler {
 
   /**
    * 旧版静态工厂方法，用于向后兼容
-   * @param {Error} err - 错误对象
-   * @param {Request} req - 请求对象
-   * @param {Response} res - 响应对象
-   * @param {Function} next - 下一个中间件函数
    */
   static handle(err, req, res, next) {
     const container = req.app.get('container');

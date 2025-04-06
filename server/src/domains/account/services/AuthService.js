@@ -4,8 +4,8 @@ const crypto = require('crypto');
 const appConfig = require('@config/app');
 const BaseService = require('../../BaseService');
 const container = require('@common/di/Container');
-const Admin = require('../models/Admin');
-const { ADMIN_ROLE, ADMIN_STATUS } = Admin;
+// 只导入常量，不导入模型
+const { ADMIN_ROLE, ADMIN_STATUS } = require('../models/Admin');
 
 /**
  * 认证服务类
@@ -17,7 +17,7 @@ class AuthService extends BaseService {
    */
   init() {
     this.modelFactory = container.resolve('modelFactory');
-    this.adminRepo = this.modelFactory.getRepository(Admin, 'account');
+    this.adminRepo = this.modelFactory.getRepository('Admin', 'account');
     this.adminModel = this.adminRepo.model; // 保留对模型的引用以兼容现有代码
   }
 
@@ -35,7 +35,6 @@ class AuthService extends BaseService {
    * @returns {Object} 包含访问令牌的对象
    */
   generateToken(user) {
-    // 创建访问令牌 - 确保包含id和role，与AuthMiddleware一致
     const accessToken = jwt.sign(
       { id: user._id, role: user.role },
       appConfig.jwt.secret,
@@ -112,7 +111,6 @@ class AuthService extends BaseService {
    */
   async getCurrentUser(userId) {
     try {
-      // 刷新用户信息
       const user = await this.adminModel.findById(userId).select('-password');
       
       if (!user) {
@@ -173,14 +171,11 @@ class AuthService extends BaseService {
       // 不管用户是否存在，都返回相同的响应，避免泄露用户信息
       if (!admin) {
         this.logInfo(`尝试重置不存在的邮箱密码: ${email}`);
-        // 为了安全，我们仍然返回成功，但不发送邮件
         return this.responseFormatter.successResponse(200, null, '如果该邮箱存在，重置链接将发送到邮箱');
       }
       
-      // 生成重置令牌
       const resetToken = crypto.randomBytes(32).toString('hex');
       
-      // 哈希令牌并保存
       admin.passwordResetToken = crypto
         .createHash('sha256')
         .update(resetToken)
@@ -189,11 +184,9 @@ class AuthService extends BaseService {
       admin.passwordResetExpires = Date.now() + 3600000; // 1小时后过期
       await admin.save();
       
-      // 构建重置URL
       const resetUrl = `${appConfig.clientUrl}/reset-password/${resetToken}`;
       
       try {
-        // 发送重置邮件
         await this.sendEmail({
           to: admin.email,
           subject: '密码重置',
@@ -211,7 +204,6 @@ class AuthService extends BaseService {
       } catch (emailError) {
         this.logError(`发送重置邮件失败: ${emailError.message}`, emailError);
         
-        // 清除重置令牌和过期时间
         admin.passwordResetToken = undefined;
         admin.passwordResetExpires = undefined;
         await admin.save();
@@ -234,13 +226,11 @@ class AuthService extends BaseService {
    */
   async resetPassword(token, password) {
     try {
-      // 哈希令牌
       const resetPasswordToken = crypto
         .createHash('sha256')
         .update(token)
         .digest('hex');
       
-      // 查找用户
       const admin = await this.adminModel.findOne({
         passwordResetToken: resetPasswordToken,
         passwordResetExpires: { $gt: Date.now() }
@@ -250,11 +240,9 @@ class AuthService extends BaseService {
         return this.responseFormatter.errorResponse(400, '密码重置令牌无效或已过期');
       }
       
-      // 哈希新密码
       const salt = await bcrypt.genSalt(10);
       admin.password = await bcrypt.hash(password, salt);
       
-      // 清除重置字段
       admin.passwordResetToken = undefined;
       admin.passwordResetExpires = undefined;
       

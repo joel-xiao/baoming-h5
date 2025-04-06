@@ -1,8 +1,8 @@
 const bcrypt = require('bcrypt');
 const BaseService = require('../../BaseService');
 const container = require('@common/di/Container');
-const Admin = require('../models/Admin');
-const { ADMIN_ROLE, ADMIN_STATUS } = Admin;
+// 只导入常量
+const { ADMIN_ROLE, ADMIN_STATUS } = require('../models/Admin');
 
 /**
  * 管理员服务类
@@ -16,8 +16,8 @@ class AdminService extends BaseService {
     // 获取模型工厂
     this.modelFactory = container.resolve('modelFactory');
     
-    // 获取管理员仓库
-    this.adminRepo = this.modelFactory.getRepository(Admin, 'account');
+    // 获取管理员仓库 - 使用字符串
+    this.adminRepo = this.modelFactory.getRepository('Admin', 'account');
     
     // 保留模型引用以兼容现有代码
     this.adminModel = this.adminRepo.model;

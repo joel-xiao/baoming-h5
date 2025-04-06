@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const appConfig = require('@config/app');
-const Admin = require('@domains/account/models/Admin');
-const { ADMIN_ROLE } = Admin;
+// 只导入常量
+const { ADMIN_ROLE } = require('@domains/account/models/Admin');
 
 /**
  * 身份验证中间件类
@@ -37,8 +37,8 @@ class AuthMiddleware {
       // 验证令牌
       const decoded = jwt.verify(token, appConfig.jwt.secret);
       
-      // 获取Admin模型
-      const adminModel = this.modelFactory.getModel(Admin);
+      // 获取Admin模型 - 使用字符串参数
+      const adminModel = this.modelFactory.getModel('Admin', 'account');
       
       // 查找用户
       const user = await adminModel.findById(decoded.id);

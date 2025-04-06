@@ -89,8 +89,6 @@ class PerformanceMonitor {
 
   /**
    * 旧版静态工厂方法，用于向后兼容
-   * @param {Object} options - 配置选项
-   * @returns {Function} Express中间件函数
    */
   static create(options = {}) {
     return (req, res, next) => {
